@@ -1,116 +1,124 @@
-🎧 WMusic
+<div align="center">
 
-Sua música. Seu estilo. Sua experiência.
+  <img src="assets/icon_music_app.png" alt="WMusic" width="112" />
 
-O WMusic é um projeto de aplicativo Android desenvolvido com foco em uma experiência musical moderna, identidade visual minimalista e uma interface inspirada na estética da geração Z.
+  <h1>WMusic</h1>
 
-Com uma paleta escura e detalhes em verde-lima, o projeto busca unir simplicidade, personalidade e desenvolvimento nativo para Android.
+  <p><strong>Sua música. Seu estilo. Sua experiência.</strong></p>
 
-<p align="center">
-  <img src="assets/icon_music_app.png" alt="Ícone do WMusic" width="120">
-</p><p align="center">
-  <strong>Design minimalista · Android · Kotlin</strong>
-</p>---
+  <p>
+    <img src="https://img.shields.io/badge/Android-App-10120F?style=flat-square&logo=android&logoColor=B7F36B" alt="Android app" />
+    <img src="https://img.shields.io/badge/Kotlin-Development-10120F?style=flat-square&logo=kotlin&logoColor=B7F36B" alt="Kotlin" />
+    <img src="https://img.shields.io/badge/Status-Em%20desenvolvimento-B7F36B?style=flat-square&labelColor=10120F" alt="Em desenvolvimento" />
+  </p>
 
-✨ Sobre o projeto
+  <p>
+    <a href="https://github.com/mateusaug1/AugMusic">Repositório</a>
+    ·
+    <a href="https://github.com/mateusaug1/AugMusic/issues">Reportar problema</a>
+  </p>
 
-O WMusic é desenvolvido em Kotlin e utiliza a estrutura de um projeto Android nativo.
+</div>
 
-O projeto também conta com uma landing page própria para apresentar sua identidade visual e suas informações.
+---
 
-🎨 Identidade visual
+## Sobre
 
-- Fundo: "#10120F"
-- Cor de destaque: "#B7F36B"
-- Estilo: minimalista, moderno e inspirado na Gen Z
-- Proposta: uma interface limpa, com contraste e sem excesso de elementos visuais
+O **WMusic** é um projeto de aplicativo Android desenvolvido em Kotlin, com uma identidade visual escura, minimalista e marcada por detalhes em verde-lima.
 
-🛠️ Tecnologias
+O repositório também inclui uma landing page para apresentar o projeto e sua identidade.
 
-- Kotlin — desenvolvimento Android.
-- Gradle — configuração e compilação do projeto.
-- Android SDK — ferramentas para desenvolvimento Android.
-- Git e GitHub — versionamento e colaboração.
-- HTML e CSS — landing page do projeto.
+## Identidade visual
 
-📁 Estrutura do projeto
+| Elemento | Cor |
+|:--|:--|
+| Fundo | `#10120F` |
+| Destaque | `#B7F36B` |
 
+A proposta visual prioriza contraste, clareza e uma interface sem excesso de elementos.
+
+## Tecnologias
+
+- **Kotlin** — desenvolvimento Android
+- **Gradle** — configuração e compilação
+- **Android SDK** — ferramentas para Android
+- **HTML e CSS** — landing page
+- **Git e GitHub** — versionamento do projeto
+
+## Estrutura
+
+```text
 AugMusic/
+├── .github/workflows/
 ├── app/
-│   ├── src/main/
-│   │   ├── java/com/augustos/augmusic/
-│   │   │   ├── MainActivity.kt
-│   │   │   └── MusicService.kt
-│   │   ├── res/
-│   │   └── AndroidManifest.xml
-│   └── build.gradle.kts
+│   └── src/main/
+│       ├── java/com/augustos/augmusic/
+│       │   ├── MainActivity.kt
+│       │   └── MusicService.kt
+│       ├── res/
+│       └── AndroidManifest.xml
 ├── assets/
 │   ├── icon_music.png
 │   ├── icon_music_app.png
 │   └── icon_music-placeholder.svg
+├── gradle/wrapper/
 ├── index.html
-├── gradle/
+├── README.md
 ├── build.gradle.kts
 ├── settings.gradle.kts
-├── gradlew
-└── README.md
+└── gradlew
+```
 
-🚀 Como executar
+## Começar
 
-Requisitos
+### Requisitos
 
-- Android SDK compatível com a configuração do projeto.
-- JDK compatível com a versão do Gradle utilizada.
-- Git para clonar o repositório.
+- Git
+- JDK e Android SDK compatíveis com a configuração do projeto
 
-1. Clone o repositório
+### Clonar o projeto
 
+```bash
 git clone https://github.com/mateusaug1/AugMusic.git
 cd AugMusic
+```
 
-2. Compile o aplicativo
+### Compilar uma versão de depuração
 
-No Linux ou Termux, com o ambiente Android configurado:
-
+```bash
 chmod +x gradlew
 ./gradlew assembleDebug
+```
 
-Se a compilação terminar com sucesso, o APK de depuração normalmente estará em:
+Se a compilação for concluída, o APK normalmente será gerado em:
 
+```text
 app/build/outputs/apk/debug/app-debug.apk
+```
 
-A compilação depende das ferramentas e versões exigidas pela configuração atual do projeto.
+A compilação depende das versões e ferramentas exigidas pelo ambiente Android configurado.
 
-🌐 Landing page
+## Landing page
 
-O repositório também contém uma página HTML para apresentar o WMusic.
+A página de apresentação está no arquivo [`index.html`](index.html). Para visualizar a página, abra esse arquivo em um navegador ou publique-o em uma hospedagem de sites estáticos.
 
-Arquivo principal: ""index.html"" (index.html)
+## Status
 
-📌 Status do projeto
+**Em desenvolvimento.** Recursos, compatibilidade e instruções podem mudar conforme o projeto evolui.
 
-Em desenvolvimento.
-
-O WMusic é um projeto em evolução. Recursos, compatibilidade e instruções poderão mudar conforme novas versões forem implementadas.
-
-🤝 Contribuição
-
-Sugestões, melhorias e contribuições são bem-vindas.
+## Contribuir
 
 1. Faça um fork do repositório.
 2. Crie uma branch para sua alteração.
-3. Faça suas modificações e testes.
-4. Envie um pull request com uma descrição clara.
+3. Faça as modificações e teste.
+4. Abra um pull request explicando o que mudou.
 
-👨‍💻 Desenvolvedor
+## Desenvolvedor
 
-Projeto desenvolvido por Mateus Augusto.
-
-- GitHub: "@mateusaug1" (https://github.com/mateusaug1)
-- Repositório: "AugMusic" (https://github.com/mateusaug1/AugMusic)
+**Mateus Augusto** · [@mateusaug1](https://github.com/mateusaug1)
 
 ---
 
-<p align="center">
-  <strong>WMusic — Sua música. Seu estilo.</strong>
-</p>
+<div align="center">
+  <sub>WMusic — Sua música. Seu estilo.</sub>
+</div>
