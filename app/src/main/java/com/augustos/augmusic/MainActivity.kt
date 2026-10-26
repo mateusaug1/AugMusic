@@ -92,8 +92,11 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        controllerFuture?.let { MediaController.releaseFuture(it) }
+        val future = controllerFuture
         controllerFuture = null
+        if (future != null) {
+            MediaController.releaseFuture(future)
+        }
         controllerState.value = null
         super.onDestroy()
     }
