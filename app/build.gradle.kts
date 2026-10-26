@@ -12,8 +12,8 @@ android {
         applicationId = "com.augustos.augmusic"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 6
+        versionName = "6.0.0"
     }
 
     buildFeatures { compose = true }

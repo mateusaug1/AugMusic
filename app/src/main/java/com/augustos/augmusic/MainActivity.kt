@@ -60,6 +60,7 @@ import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import kotlinx.coroutines.delay
@@ -156,7 +157,9 @@ class MainActivity : ComponentActivity() {
                 result += AudioTrack(
                     id,
                     cursor.getString(titleCol)?.takeIf(String::isNotBlank) ?: "Música sem título",
-                    cursor.getString(artistCol)?.takeIf(String::isNotBlank) ?: "Artista desconhecido",
+                    cursor.getString(artistCol)?.trim()?.takeIf {
+                        it.isNotBlank() && !it.equals("<unknown>", true) && !it.equals("unknown", true)
+                    } ?: "Artista desconhecido",
                     cursor.getString(albumCol)?.takeIf(String::isNotBlank) ?: "Álbum desconhecido",
                     cursor.getLong(albumIdCol),
                     if (pathCol >= 0) cursor.getString(pathCol) else null,
@@ -185,6 +188,9 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
     var showFullPlayer by remember { mutableStateOf(false) }
     var showLyrics by remember { mutableStateOf(false) }
     var showTimer by remember { mutableStateOf(false) }
+    var showSpeed by remember { mutableStateOf(false) }
+    var playbackSpeed by remember { mutableFloatStateOf(1f) }
+    var lyricsText by remember { mutableStateOf<String?>(null) }
     var timerJob by remember { mutableStateOf<Job?>(null) }
     val coroutineScope = rememberCoroutineScope()
     var currentTrack by remember { mutableStateOf<AudioTrack?>(null) }
@@ -195,7 +201,17 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
     var durationMs by remember { mutableLongStateOf(0L) }
     var isSeeking by remember { mutableStateOf(false) }
     var seekValue by remember { mutableFloatStateOf(0f) }
-    val favorites = remember { mutableStateListOf<Long>() }
+    val favorites = remember {
+        mutableStateListOf<Long>().apply {
+            val saved = context.getSharedPreferences("wmusic_preferences", android.content.Context.MODE_PRIVATE)
+                .getStringSet("favorites", emptySet()) ?: emptySet()
+            addAll(saved.mapNotNull { it.toLongOrNull() })
+        }
+    }
+    LaunchedEffect(favorites.size) {
+        context.getSharedPreferences("wmusic_preferences", android.content.Context.MODE_PRIVATE)
+            .edit().putStringSet("favorites", favorites.map { it.toString() }.toSet()).apply()
+    }
 
     val permission = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO
     else Manifest.permission.READ_EXTERNAL_STORAGE
@@ -244,9 +260,14 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
         }
     }
 
-    val visibleTracks = tracks.filter { track ->
-        val matchesSearch = "${track.title} ${track.artist} ${track.album}".contains(search, true)
-        matchesSearch && (selectedTab != "Favoritos" || favorites.contains(track.id))
+    val searchedTracks = tracks.filter { track ->
+        "${track.title} ${track.artist} ${track.album}".contains(search, true)
+    }
+    val visibleTracks = when (selectedTab) {
+        "Favoritos" -> searchedTracks.filter { favorites.contains(it.id) }
+        "Álbuns" -> searchedTracks.distinctBy { it.albumId }
+        "Artistas" -> searchedTracks.distinctBy { it.artist.lowercase() }
+        else -> searchedTracks
     }
 
     fun toMediaItem(track: AudioTrack): MediaItem = MediaItem.Builder()
@@ -278,13 +299,15 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
         containerColor = AugInk,
         bottomBar = {
             NavigationBar(containerColor = AugPanel) {
-                listOf("Músicas", "Favoritos", "Fila").forEach { tab ->
+                listOf("Músicas", "Álbuns", "Artistas", "Favoritos", "Fila").forEach { tab ->
                     NavigationBarItem(
                         selected = selectedTab == tab || (tab == "Fila" && showQueue),
                         onClick = { if (tab == "Fila") showQueue = true else selectedTab = tab },
                         icon = {
                             Icon(
                                 when (tab) {
+                                    "Álbuns" -> Icons.Default.Album
+                                    "Artistas" -> Icons.Default.Person
                                     "Favoritos" -> Icons.Default.Favorite
                                     "Fila" -> Icons.Default.QueueMusic
                                     else -> Icons.Default.LibraryMusic
@@ -308,8 +331,7 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("AUG", color = AugLime, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 4.sp)
-                    Text("MUSIC", color = Color.White, fontSize = 29.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                    Text("W", color = AugLime, fontSize = 38.sp, fontWeight = FontWeight.Black, letterSpacing = 0.sp)
                 }
                 IconButton(onClick = {
                     if (hasPermission) tracks = loadTracks() else permissionLauncher.launch(permission)
@@ -338,7 +360,12 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
             )
 
             Row(Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(if (selectedTab == "Favoritos") "FAVORITOS" else "SUA BIBLIOTECA",
+                Text(when (selectedTab) {
+                    "Favoritos" -> "FAVORITOS"
+                    "Álbuns" -> "ÁLBUNS"
+                    "Artistas" -> "ARTISTAS"
+                    else -> "SUA BIBLIOTECA"
+                },
                     color = AugMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
                 Spacer(Modifier.weight(1f))
                 Text("${visibleTracks.size} faixas", color = AugMuted, fontSize = 12.sp)
@@ -361,7 +388,14 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
                         Row(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp))
                                 .combinedClickable(
-                                    onClick = { playTrack(track, visibleTracks) },
+                                    onClick = {
+                                        val queue = when (selectedTab) {
+                                            "Álbuns" -> tracks.filter { it.albumId == track.albumId }
+                                            "Artistas" -> tracks.filter { it.artist.equals(track.artist, true) }
+                                            else -> visibleTracks
+                                        }
+                                        playTrack(track, queue)
+                                    },
                                     onLongClick = { menuTrack = track }
                                 )
                                 .padding(vertical = 8.dp, horizontal = 5.dp),
@@ -379,8 +413,22 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
                                 }
                             }
                             Column(Modifier.weight(1f).padding(horizontal = 11.dp)) {
-                                Text(track.title, color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(track.artist, color = AugMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(
+                                    when (selectedTab) {
+                                        "Álbuns" -> track.album
+                                        "Artistas" -> track.artist
+                                        else -> track.title
+                                    },
+                                    color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    when (selectedTab) {
+                                        "Álbuns" -> track.artist
+                                        "Artistas" -> "${tracks.count { it.artist.equals(track.artist, true) }} músicas"
+                                        else -> track.artist
+                                    },
+                                    color = AugMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
+                                )
                             }
                             IconButton(onClick = {
                                 if (favorites.contains(track.id)) favorites.remove(track.id) else favorites.add(track.id)
@@ -490,6 +538,7 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
             shuffleEnabled = shuffleEnabled,
             repeatMode = repeatMode,
             isFavorite = favorites.contains(currentTrack!!.id),
+            playbackSpeed = playbackSpeed,
             onDismiss = { showFullPlayer = false },
             onPlayPause = { if (controller?.isPlaying == true) controller.pause() else controller?.play() },
             onPrevious = { controller?.seekToPreviousMediaItem() },
@@ -507,17 +556,73 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
             onFavorite = { if (favorites.contains(currentTrack!!.id)) favorites.remove(currentTrack!!.id) else favorites.add(currentTrack!!.id) },
             onLyrics = { showLyrics = true },
             onTimer = { showTimer = true },
+            onSpeed = { showSpeed = true },
             onQueue = { showFullPlayer = false; showQueue = true },
             onMore = { menuTrack = currentTrack }
         )
+    }
+
+    LaunchedEffect(showLyrics, currentTrack?.id) {
+        if (showLyrics) {
+            val track = currentTrack
+            lyricsText = withContext(Dispatchers.IO) {
+                try {
+                    val parent = track?.path?.let { File(it).parentFile }
+                    val base = track?.path?.let { File(it).nameWithoutExtension }
+                    val candidates = listOfNotNull(
+                        if (parent != null && base != null) File(parent, "$base.lrc") else null,
+                        if (parent != null && base != null) File(parent, "$base.txt") else null,
+                        if (parent != null) File(parent, "lyrics.lrc") else null,
+                        if (parent != null) File(parent, "lyrics.txt") else null
+                    )
+                    candidates.firstOrNull { it.isFile }?.readText()?.take(30000)
+                } catch (_: Exception) { null }
+            }
+        }
     }
 
     if (showLyrics) {
         AlertDialog(
             onDismissRequest = { showLyrics = false },
             title = { Text("Letra da música") },
-            text = { Text("Nenhuma letra sincronizada foi encontrada. O suporte a letras locais e sincronizadas será adicionado em uma atualização futura.") },
+            text = {
+                Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                    Text(currentTrack?.title ?: "Música", fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        lyricsText ?: "Nenhum arquivo de letra encontrado. Coloque um arquivo .lrc ou .txt com o mesmo nome da música na mesma pasta do áudio.",
+                        color = if (lyricsText == null) AugMuted else Color.White
+                    )
+                }
+            },
             confirmButton = { TextButton(onClick = { showLyrics = false }) { Text("Fechar") } }
+        )
+    }
+
+    if (showSpeed) {
+        AlertDialog(
+            onDismissRequest = { showSpeed = false },
+            title = { Text("Velocidade de reprodução") },
+            text = {
+                Column {
+                    listOf(0.5f, 0.8f, 1f, 1.2f, 1.5f, 2f).forEach { speed ->
+                        TextButton(
+                            onClick = {
+                                playbackSpeed = speed
+                                controller?.playbackParameters = PlaybackParameters(speed, 1f)
+                                showSpeed = false
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                "${speed}x",
+                                color = if (playbackSpeed == speed) AugLime else Color.White
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showSpeed = false }) { Text("Fechar") } }
         )
     }
 
@@ -528,7 +633,7 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
             text = { Text("Pause a reprodução automaticamente após:") },
             confirmButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    listOf(15, 30, 60).forEach { minutes ->
+                    listOf(15, 30, 45, 60).forEach { minutes ->
                         TextButton(onClick = {
                             timerJob?.cancel()
                             timerJob = coroutineScope.launch {
@@ -538,8 +643,23 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
                             }
                             showTimer = false
                             android.widget.Toast.makeText(context, "Timer de $minutes min ativado", android.widget.Toast.LENGTH_SHORT).show()
-                        }) { Text("${minutes}m") }
+                        }) { Text(if (minutes == 60) "1h" else "${minutes}m") }
                     }
+                    TextButton(onClick = {
+                        timerJob?.cancel()
+                        val remaining = (controller?.duration ?: 0L) - (controller?.currentPosition ?: 0L)
+                        if (remaining > 0L) {
+                            timerJob = coroutineScope.launch {
+                                delay(remaining)
+                                controller?.pause()
+                                android.widget.Toast.makeText(context, "Fim da música", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                            android.widget.Toast.makeText(context, "Vai parar no fim da música", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            android.widget.Toast.makeText(context, "Não foi possível calcular o tempo restante", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                        showTimer = false
+                    }) { Text("Fim da música") }
                 }
             },
             dismissButton = { TextButton(onClick = { timerJob?.cancel(); timerJob = null; showTimer = false }) { Text("Cancelar") } }
@@ -691,6 +811,7 @@ private fun FullPlayerDialog(
     shuffleEnabled: Boolean,
     repeatMode: Int,
     isFavorite: Boolean,
+    playbackSpeed: Float,
     onDismiss: () -> Unit,
     onPlayPause: () -> Unit,
     onPrevious: () -> Unit,
@@ -701,6 +822,7 @@ private fun FullPlayerDialog(
     onFavorite: () -> Unit,
     onLyrics: () -> Unit,
     onTimer: () -> Unit,
+    onSpeed: () -> Unit,
     onQueue: () -> Unit,
     onMore: () -> Unit
 ) {
@@ -802,6 +924,7 @@ private fun FullPlayerDialog(
                     IconButton(onClick = onLyrics) { Icon(Icons.Default.ChatBubbleOutline, "Letra", tint = Color.White) }
                     IconButton(onClick = onFavorite) { Icon(if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, "Favorito", tint = if (isFavorite) AugLime else Color.White) }
                     IconButton(onClick = onTimer) { Icon(Icons.Default.Timer, "Timer", tint = Color.White) }
+                    TextButton(onClick = onSpeed) { Text("${playbackSpeed}×", color = AugLime, fontWeight = FontWeight.Bold) }
                     IconButton(onClick = onQueue) { Icon(Icons.Default.QueueMusic, "Fila", tint = Color.White) }
                 }
                 val format = track.path?.substringAfterLast('.', "")?.uppercase()?.takeIf { it.isNotBlank() } ?: "ÁUDIO"
