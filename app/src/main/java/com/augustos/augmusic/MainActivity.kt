@@ -6,6 +6,9 @@ import android.content.ContentUris
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.graphics.BitmapFactory
+import android.graphics.Bitmap
+import java.io.File
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
@@ -14,6 +17,17 @@ import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
@@ -28,7 +42,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import coil.compose.AsyncImage
+import androidx.palette.graphics.Palette
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,6 +75,8 @@ private data class AudioTrack(
     val title: String,
     val artist: String,
     val album: String,
+    val albumId: Long,
+    val path: String?,
     val uri: Uri,
     val duration: Long,
     val size: Long,
@@ -106,6 +131,8 @@ class MainActivity : ComponentActivity() {
             MediaStore.Audio.Media.TITLE,
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.ALBUM,
+            MediaStore.Audio.Media.ALBUM_ID,
+            MediaStore.Audio.Media.DATA,
             MediaStore.Audio.Media.DURATION,
             MediaStore.Audio.Media.SIZE,
             MediaStore.Audio.Media.DATE_ADDED
@@ -119,6 +146,8 @@ class MainActivity : ComponentActivity() {
             val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
             val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
             val albumCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+            val albumIdCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
+            val pathCol = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
             val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
             val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
             val dateCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
@@ -129,6 +158,8 @@ class MainActivity : ComponentActivity() {
                     cursor.getString(titleCol)?.takeIf(String::isNotBlank) ?: "Música sem título",
                     cursor.getString(artistCol)?.takeIf(String::isNotBlank) ?: "Artista desconhecido",
                     cursor.getString(albumCol)?.takeIf(String::isNotBlank) ?: "Álbum desconhecido",
+                    cursor.getLong(albumIdCol),
+                    if (pathCol >= 0) cursor.getString(pathCol) else null,
                     ContentUris.withAppendedId(collection, id),
                     cursor.getLong(durationCol),
                     cursor.getLong(sizeCol),
@@ -151,6 +182,11 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
     var menuTrack by remember { mutableStateOf<AudioTrack?>(null) }
     var detailsTrack by remember { mutableStateOf<AudioTrack?>(null) }
     var showQueue by remember { mutableStateOf(false) }
+    var showFullPlayer by remember { mutableStateOf(false) }
+    var showLyrics by remember { mutableStateOf(false) }
+    var showTimer by remember { mutableStateOf(false) }
+    var timerJob by remember { mutableStateOf<Job?>(null) }
+    val coroutineScope = rememberCoroutineScope()
     var currentTrack by remember { mutableStateOf<AudioTrack?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
     var shuffleEnabled by remember { mutableStateOf(false) }
@@ -221,6 +257,7 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
                 .setTitle(track.title)
                 .setArtist(track.artist)
                 .setAlbumTitle(track.album)
+                .setArtworkUri(albumArtworkUri(track))
                 .build()
         ).build()
 
@@ -330,8 +367,16 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
                                 .padding(vertical = 8.dp, horizontal = 5.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(Modifier.size(48.dp).clip(RoundedCornerShape(13.dp)).background(AugPanel), contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.MusicNote, null, tint = if (currentTrack?.id == track.id) AugLime else AugMuted)
+                            Box {
+                                AlbumArtwork(track, 48.dp)
+                                if (currentTrack?.id == track.id && isPlaying) {
+                                    Icon(
+                                        Icons.Default.GraphicEq, "Tocando",
+                                        tint = AugLime,
+                                        modifier = Modifier.align(Alignment.BottomEnd).size(18.dp)
+                                            .background(AugInk.copy(alpha = .85f), RoundedCornerShape(6.dp))
+                                    )
+                                }
                             }
                             Column(Modifier.weight(1f).padding(horizontal = 11.dp)) {
                                 Text(track.title, color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -350,7 +395,15 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
 
             currentTrack?.let { track ->
                 Card(
-                    Modifier.fillMaxWidth().padding(top = 5.dp, bottom = 7.dp),
+                    Modifier.fillMaxWidth().padding(top = 5.dp, bottom = 7.dp)
+                        .combinedClickable(onClick = { showFullPlayer = true }, onLongClick = { menuTrack = track })
+                        .pointerInput(track.id) {
+                            var totalDrag = 0f
+                            detectVerticalDragGestures(
+                                onDragEnd = { if (totalDrag < -35f) showFullPlayer = true; totalDrag = 0f },
+                                onVerticalDrag = { _, amount -> totalDrag += amount }
+                            )
+                        },
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = AugPanel)
                 ) {
@@ -412,10 +465,85 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
                                 Icon(Icons.Default.QueueMusic, "Abrir fila", tint = AugMuted)
                             }
                         }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { showLyrics = true }) { Icon(Icons.Default.ChatBubbleOutline, "Letra", tint = AugMuted) }
+                            IconButton(onClick = { if (favorites.contains(track.id)) favorites.remove(track.id) else favorites.add(track.id) }) {
+                                Icon(if (favorites.contains(track.id)) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                    "Favorito", tint = if (favorites.contains(track.id)) AugLime else AugMuted)
+                            }
+                            IconButton(onClick = { showTimer = true }) { Icon(Icons.Default.Timer, "Timer", tint = AugMuted) }
+                            IconButton(onClick = { showQueue = true }) { Icon(Icons.Default.QueueMusic, "Fila", tint = AugMuted) }
+                        }
                     }
                 }
             }
         }
+    }
+
+    if (showFullPlayer && currentTrack != null) {
+        FullPlayerDialog(
+            track = currentTrack!!,
+            controller = controller,
+            isPlaying = isPlaying,
+            positionMs = positionMs,
+            durationMs = durationMs,
+            shuffleEnabled = shuffleEnabled,
+            repeatMode = repeatMode,
+            isFavorite = favorites.contains(currentTrack!!.id),
+            onDismiss = { showFullPlayer = false },
+            onPlayPause = { if (controller?.isPlaying == true) controller.pause() else controller?.play() },
+            onPrevious = { controller?.seekToPreviousMediaItem() },
+            onNext = { controller?.seekToNextMediaItem() },
+            onSeek = { controller?.seekTo(it); positionMs = it },
+            onShuffle = { shuffleEnabled = !shuffleEnabled; controller?.shuffleModeEnabled = shuffleEnabled },
+            onRepeat = {
+                repeatMode = when (repeatMode) {
+                    Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+                    Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+                    else -> Player.REPEAT_MODE_OFF
+                }
+                controller?.repeatMode = repeatMode
+            },
+            onFavorite = { if (favorites.contains(currentTrack!!.id)) favorites.remove(currentTrack!!.id) else favorites.add(currentTrack!!.id) },
+            onLyrics = { showLyrics = true },
+            onTimer = { showTimer = true },
+            onQueue = { showFullPlayer = false; showQueue = true },
+            onMore = { menuTrack = currentTrack }
+        )
+    }
+
+    if (showLyrics) {
+        AlertDialog(
+            onDismissRequest = { showLyrics = false },
+            title = { Text("Letra da música") },
+            text = { Text("Nenhuma letra sincronizada foi encontrada. O suporte a letras locais e sincronizadas será adicionado em uma atualização futura.") },
+            confirmButton = { TextButton(onClick = { showLyrics = false }) { Text("Fechar") } }
+        )
+    }
+
+    if (showTimer) {
+        AlertDialog(
+            onDismissRequest = { showTimer = false },
+            title = { Text("Timer de desligamento") },
+            text = { Text("Pause a reprodução automaticamente após:") },
+            confirmButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    listOf(15, 30, 60).forEach { minutes ->
+                        TextButton(onClick = {
+                            timerJob?.cancel()
+                            timerJob = coroutineScope.launch {
+                                delay(minutes * 60_000L)
+                                controller?.pause()
+                                android.widget.Toast.makeText(context, "Timer finalizado", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                            showTimer = false
+                            android.widget.Toast.makeText(context, "Timer de $minutes min ativado", android.widget.Toast.LENGTH_SHORT).show()
+                        }) { Text("${minutes}m") }
+                    }
+                }
+            },
+            dismissButton = { TextButton(onClick = { timerJob?.cancel(); timerJob = null; showTimer = false }) { Text("Cancelar") } }
+        )
     }
 
     menuTrack?.let { track ->
@@ -518,6 +646,173 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
             },
             confirmButton = { TextButton(onClick = { detailsTrack = null }) { Text("Fechar") } }
         )
+    }
+}
+
+
+private fun coverFile(track: AudioTrack): File? {
+    val parent = track.path?.let { File(it).parentFile }
+    return parent?.let { File(it, "cover.jpg") }?.takeIf { it.isFile }
+}
+
+private fun albumArtworkUri(track: AudioTrack): Uri =
+    Uri.parse("content://media/external/audio/albumart/${track.albumId}")
+
+private fun artworkModel(track: AudioTrack): Any =
+    coverFile(track) ?: albumArtworkUri(track)
+
+@Composable
+private fun AlbumArtwork(track: AudioTrack, size: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier) {
+    var useAlbumFallback by remember(track.id) { mutableStateOf(false) }
+    val imageModel = if (!useAlbumFallback) artworkModel(track) else albumArtworkUri(track)
+    Box(
+        modifier.size(size).clip(RoundedCornerShape(16.dp)).background(AugPanel),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(Icons.Default.MusicNote, null, tint = AugMuted.copy(alpha = .8f), modifier = Modifier.size(size * .48f))
+        AsyncImage(
+            model = imageModel,
+            contentDescription = "Capa de ${track.title}",
+            contentScale = ContentScale.Crop,
+            onError = { if (!useAlbumFallback) useAlbumFallback = true },
+            modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp))
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FullPlayerDialog(
+    track: AudioTrack,
+    controller: MediaController?,
+    isPlaying: Boolean,
+    positionMs: Long,
+    durationMs: Long,
+    shuffleEnabled: Boolean,
+    repeatMode: Int,
+    isFavorite: Boolean,
+    onDismiss: () -> Unit,
+    onPlayPause: () -> Unit,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onSeek: (Long) -> Unit,
+    onShuffle: () -> Unit,
+    onRepeat: () -> Unit,
+    onFavorite: () -> Unit,
+    onLyrics: () -> Unit,
+    onTimer: () -> Unit,
+    onQueue: () -> Unit,
+    onMore: () -> Unit
+) {
+    val context = LocalContext.current
+    var dominant by remember(track.id) { mutableStateOf(Color(0xFF202820)) }
+    var dragTotal by remember { mutableFloatStateOf(0f) }
+    var isSeeking by remember { mutableStateOf(false) }
+    var seekValue by remember { mutableFloatStateOf(positionMs.toFloat()) }
+
+    LaunchedEffect(track.id) {
+        dominant = withContext(Dispatchers.IO) {
+            try {
+                val bitmap = coverFile(track)?.let { BitmapFactory.decodeFile(it.absolutePath) }
+                    ?: context.contentResolver.openInputStream(albumArtworkUri(track))?.use { BitmapFactory.decodeStream(it) }
+                bitmap?.let { bmp ->
+                    val color = Palette.from(bmp).generate().getVibrantColor(0xFF26362D.toInt())
+                    bmp.recycle()
+                    Color(color)
+                } ?: Color(0xFF202820)
+            } catch (_: Exception) { Color(0xFF202820) }
+        }
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
+    ) {
+        Box(
+            Modifier.fillMaxSize()
+                .background(Brush.verticalGradient(listOf(Color(0xFF070907), dominant.copy(alpha = .62f), AugInk)))
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+        ) {
+            AsyncImage(
+                model = artworkModel(track),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().blur(34.dp)
+            )
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(.78f), AugInk.copy(.68f), AugInk))))
+            Column(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().pointerInput(track.id) {
+                        detectVerticalDragGestures(
+                            onDragEnd = { if (dragTotal > 55f) onDismiss(); dragTotal = 0f },
+                            onVerticalDrag = { _, amount -> dragTotal += amount }
+                        )
+                    },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onDismiss) { Icon(Icons.Default.KeyboardArrowDown, "Fechar player", tint = Color.White, modifier = Modifier.size(30.dp)) }
+                    Spacer(Modifier.weight(1f))
+                    Text("TOCANDO AGORA", color = AugMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                    Spacer(Modifier.weight(1f))
+                    IconButton(onClick = onMore) { Icon(Icons.Default.MoreVert, "Mais opções", tint = Color.White) }
+                }
+                Spacer(Modifier.height(12.dp))
+                AlbumArtwork(track, 250.dp, Modifier.fillMaxWidth(.72f))
+                Spacer(Modifier.height(25.dp))
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(track.title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(track.artist, color = Color.White.copy(alpha = .72f), fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    IconButton(onClick = onFavorite) {
+                        Icon(if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, "Favorito",
+                            tint = if (isFavorite) AugLime else Color.White, modifier = Modifier.size(25.dp))
+                    }
+                }
+                Spacer(Modifier.height(18.dp))
+                Slider(
+                    value = (if (isSeeking) seekValue else positionMs.toFloat()).coerceIn(0f, durationMs.coerceAtLeast(1L).toFloat()),
+                    onValueChange = { isSeeking = true; seekValue = it },
+                    onValueChangeFinished = { onSeek(seekValue.toLong()); isSeeking = false },
+                    valueRange = 0f..durationMs.coerceAtLeast(1L).toFloat(),
+                    colors = SliderDefaults.colors(thumbColor = AugLime, activeTrackColor = AugLime, inactiveTrackColor = Color.White.copy(alpha = .22f))
+                )
+                Row(Modifier.fillMaxWidth()) {
+                    Text(formatDuration(if (isSeeking) seekValue.toLong() else positionMs), color = AugMuted, fontSize = 11.sp)
+                    Spacer(Modifier.weight(1f))
+                    Text(formatDuration(durationMs), color = AugMuted, fontSize = 11.sp)
+                }
+                Spacer(Modifier.height(12.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onShuffle) { Icon(Icons.Default.Shuffle, "Aleatório", tint = if (shuffleEnabled) AugLime else AugMuted) }
+                    IconButton(onClick = onPrevious) { Icon(Icons.Default.SkipPrevious, "Anterior", tint = Color.White, modifier = Modifier.size(38.dp)) }
+                    FilledIconButton(
+                        onClick = onPlayPause,
+                        modifier = Modifier.size(66.dp),
+                        colors = IconButtonDefaults.filledIconButtonColors(containerColor = AugLime, contentColor = AugInk)
+                    ) { Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, if (isPlaying) "Pausar" else "Reproduzir", modifier = Modifier.size(38.dp)) }
+                    IconButton(onClick = onNext) { Icon(Icons.Default.SkipNext, "Próxima", tint = Color.White, modifier = Modifier.size(38.dp)) }
+                    IconButton(onClick = onRepeat) { Icon(if (repeatMode == Player.REPEAT_MODE_ONE) Icons.Default.RepeatOne else Icons.Default.Repeat, "Repetir", tint = if (repeatMode == Player.REPEAT_MODE_OFF) AugMuted else AugLime) }
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onLyrics) { Icon(Icons.Default.ChatBubbleOutline, "Letra", tint = Color.White) }
+                    IconButton(onClick = onFavorite) { Icon(if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, "Favorito", tint = if (isFavorite) AugLime else Color.White) }
+                    IconButton(onClick = onTimer) { Icon(Icons.Default.Timer, "Timer", tint = Color.White) }
+                    IconButton(onClick = onQueue) { Icon(Icons.Default.QueueMusic, "Fila", tint = Color.White) }
+                }
+                val format = track.path?.substringAfterLast('.', "")?.uppercase()?.takeIf { it.isNotBlank() } ?: "ÁUDIO"
+                val kbps = if (track.duration > 0L && track.size > 0L) (track.size * 8L / track.duration).coerceAtLeast(1L) else 0L
+                Text(
+                    if (kbps > 0) "$format · ~${kbps} kb/s · arquivo local" else "$format · arquivo local",
+                    color = AugMuted, fontSize = 10.sp, letterSpacing = .5.sp,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 16.dp)
+                )
+            }
+        }
     }
 }
 
