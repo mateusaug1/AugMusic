@@ -40,7 +40,7 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import kotlinx.coroutines.delay
-import java.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.ListenableFuture
 
 private val AugInk = Color(0xFF10120F)
 private val AugPanel = Color(0xFF1A1E19)
@@ -59,7 +59,7 @@ private data class AudioTrack(
 )
 
 class MainActivity : ComponentActivity() {
-    private var controllerFuture: Any? = null
+    private var controllerFuture: ListenableFuture<MediaController>? = null
     private val controllerState = mutableStateOf<MediaController?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -92,12 +92,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        controllerFuture?.let {
-            @Suppress("UNCHECKED_CAST")
-            MediaController.releaseFuture(
-                it as java.util.concurrent.Future<MediaController>
-            )
-        }
+        controllerFuture?.let { MediaController.releaseFuture(it) }
         controllerFuture = null
         controllerState.value = null
         super.onDestroy()
