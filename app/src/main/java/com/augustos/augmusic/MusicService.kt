@@ -21,6 +21,8 @@ class MusicService : MediaSessionService() {
             )
             setHandleAudioBecomingNoisy(true)
         }
+        getSharedPreferences("wmusic_preferences", MODE_PRIVATE).edit()
+            .putInt("audio_session_id", player.audioSessionId).apply()
         mediaSession = MediaSession.Builder(this, player).build()
     }
 

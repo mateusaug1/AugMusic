@@ -1,8 +1,9 @@
-name: Build AugMusic APK
+name: Build WMusic APK
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -23,25 +24,23 @@ jobs:
           java-version: '17'
 
       - name: Configurar Android SDK
-        run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
-          if [ -z "$SDKMANAGER" ]; then
-            echo "Erro: sdkmanager não encontrado"
-            exit 1
-          fi
-          yes | "$SDKMANAGER" --licenses
-          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar componentes Android
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Dar permissão ao Gradle Wrapper
+        run: chmod +x gradlew
+
       - name: Compilar APK
-        run: ./gradlew assembleDebug
+        run: ./gradlew --no-daemon assembleDebug
 
       - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
         with:
-          name: AugMusic-debug
+          name: WMusic-V7-debug
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

@@ -1,31 +1,26 @@
-# WMusic 6.0.0 — aplicar no Termux e enviar ao GitHub
+# Aplicar WMusic V7 pelo Termux
 
-## Antes de começar
-- Faça backup dos arquivos que você editou manualmente.
-- O projeto precisa estar em `~/AugMusic` e o remoto GitHub já configurado.
-- Este pacote traz o código-fonte completo que foi preparado nesta atualização. Algumas funções do briefing V6 ainda estão listadas em `WMUSIC-V6-NOTES.md` como pendentes; não considere tudo implementado até serem desenvolvidas e testadas.
-
-## Aplicar o código
-Copie `WMusic-v6-source.zip` para a pasta Download do celular e execute:
+1. Baixe `WMusic-V7-completo.zip` para a pasta Download do Android.
+2. No Termux, rode:
 
 ```bash
+termux-setup-storage
 cd ~/AugMusic
-unzip -o /storage/emulated/0/Download/WMusic-v6-source.zip -d ~/AugMusic
+cp -a . ../AugMusic-backup-v7-antes
+cp /storage/emulated/0/Download/WMusic-V7-completo.zip .
+unzip -o WMusic-V7-completo.zip -x '.git/*'
+chmod +x gradlew
+git status --short
 ```
 
-## Revisar e enviar ao GitHub
+3. Confira as mudanças antes de enviar ao GitHub:
+
 ```bash
-cd ~/AugMusic
-git status --short
 git add -A
-git commit -m "feat: update WMusic to v6.0.0"
+git commit -m "feat: WMusic V7 grid editor playlists equalizer"
 git push origin main
 ```
 
-Se o Git disser `nothing to commit`, as mudanças já estão aplicadas/commitadas. Se pedir login, conclua a autenticação do GitHub no Termux.
+4. Abra `https://github.com/mateusaug1/AugMusic/actions` para conferir a compilação.
 
-## Compilar
-O workflow do GitHub Actions pode compilar o APK após o push. Abra o repositório no GitHub → **Actions** → workflow Android → confira se terminou verde. Baixe o APK em **Artifacts**.
-
-## Nota
-Este arquivo é fonte Android/Gradle, não é um APK. A compilação precisa ser confirmada no GitHub Actions. Consulte `WMUSIC-V6-NOTES.md` para ver o que ainda falta do escopo completo V6.
+O backup é criado antes de copiar/extrair. O ZIP contém o projeto Android, não um APK já compilado.

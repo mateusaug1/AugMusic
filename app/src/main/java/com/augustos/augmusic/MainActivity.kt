@@ -34,6 +34,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -52,6 +56,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.abs
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -61,6 +66,10 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.PlaybackParameters
+import android.media.audiofx.Equalizer
+import android.media.audiofx.BassBoost
+import android.media.audiofx.Virtualizer
+import android.media.audiofx.PresetReverb
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import kotlinx.coroutines.delay
@@ -81,7 +90,8 @@ private data class AudioTrack(
     val uri: Uri,
     val duration: Long,
     val size: Long,
-    val dateAdded: Long
+    val dateAdded: Long,
+    val coverOverride: Uri? = null
 )
 
 class MainActivity : ComponentActivity() {
@@ -126,6 +136,7 @@ class MainActivity : ComponentActivity() {
 
     private fun readAudioTracks(): List<AudioTrack> {
         val result = mutableListOf<AudioTrack>()
+        val prefs = getSharedPreferences("wmusic_preferences", MODE_PRIVATE)
         val collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         val projection = arrayOf(
             MediaStore.Audio.Media._ID,
@@ -154,19 +165,24 @@ class MainActivity : ComponentActivity() {
             val dateCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idCol)
+                val baseTitle = cursor.getString(titleCol)?.takeIf(String::isNotBlank) ?: "Música sem título"
+                val rawArtist = cursor.getString(artistCol)?.trim()
+                val baseArtist = rawArtist?.takeIf {
+                    it.isNotBlank() && !it.equals("<unknown>", true) && !it.equals("unknown", true)
+                } ?: "Artista Desconhecido"
+                val baseAlbum = cursor.getString(albumCol)?.takeIf(String::isNotBlank) ?: "Álbum desconhecido"
                 result += AudioTrack(
                     id,
-                    cursor.getString(titleCol)?.takeIf(String::isNotBlank) ?: "Música sem título",
-                    cursor.getString(artistCol)?.trim()?.takeIf {
-                        it.isNotBlank() && !it.equals("<unknown>", true) && !it.equals("unknown", true)
-                    } ?: "Artista desconhecido",
-                    cursor.getString(albumCol)?.takeIf(String::isNotBlank) ?: "Álbum desconhecido",
+                    prefs.getString("track_${id}_title", baseTitle) ?: baseTitle,
+                    prefs.getString("track_${id}_artist", baseArtist) ?: baseArtist,
+                    prefs.getString("track_${id}_album", baseAlbum) ?: baseAlbum,
                     cursor.getLong(albumIdCol),
                     if (pathCol >= 0) cursor.getString(pathCol) else null,
                     ContentUris.withAppendedId(collection, id),
                     cursor.getLong(durationCol),
                     cursor.getLong(sizeCol),
-                    cursor.getLong(dateCol)
+                    cursor.getLong(dateCol),
+                    prefs.getString("track_${id}_cover", null)?.let { runCatching { Uri.parse(it) }.getOrNull() }
                 )
             }
         }
@@ -181,7 +197,7 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
     var tracks by remember { mutableStateOf(emptyList<AudioTrack>()) }
     var hasPermission by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf("") }
-    var selectedTab by remember { mutableStateOf("Músicas") }
+    var selectedTab by remember { mutableStateOf("Início") }
     var menuTrack by remember { mutableStateOf<AudioTrack?>(null) }
     var detailsTrack by remember { mutableStateOf<AudioTrack?>(null) }
     var showQueue by remember { mutableStateOf(false) }
@@ -189,6 +205,27 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
     var showLyrics by remember { mutableStateOf(false) }
     var showTimer by remember { mutableStateOf(false) }
     var showSpeed by remember { mutableStateOf(false) }
+    var showEqualizer by remember { mutableStateOf(false) }
+    var equalizerEnabled by remember { mutableStateOf(true) }
+    var bassBoostValue by remember { mutableFloatStateOf(35f) }
+    var virtualizerValue by remember { mutableFloatStateOf(20f) }
+    var reverbValue by remember { mutableFloatStateOf(0f) }
+    var collectionFilterType by remember { mutableStateOf<String?>(null) }
+    var collectionFilterName by remember { mutableStateOf<String?>(null) }
+    var editingTrack by remember { mutableStateOf<AudioTrack?>(null) }
+    var editTitle by remember { mutableStateOf("") }
+    var editArtist by remember { mutableStateOf("") }
+    var editAlbum by remember { mutableStateOf("") }
+    var editCoverUri by remember { mutableStateOf<String?>(null) }
+    var showCreatePlaylist by remember { mutableStateOf(false) }
+    var newPlaylistName by remember { mutableStateOf("") }
+    var selectedPlaylist by remember { mutableStateOf<String?>(null) }
+    var pendingPlaylistTrack by remember { mutableStateOf<AudioTrack?>(null) }
+    var showAddToPlaylist by remember { mutableStateOf(false) }
+    val prefs = remember { context.getSharedPreferences("wmusic_preferences", android.content.Context.MODE_PRIVATE) }
+    val playlistNames = remember {
+        mutableStateListOf<String>().apply { addAll(prefs.getStringSet("playlist_names", emptySet()) ?: emptySet()) }
+    }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
     var lyricsText by remember { mutableStateOf<String?>(null) }
     var timerJob by remember { mutableStateOf<Job?>(null) }
@@ -263,10 +300,17 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
     val searchedTracks = tracks.filter { track ->
         "${track.title} ${track.artist} ${track.album}".contains(search, true)
     }
-    val visibleTracks = when (selectedTab) {
-        "Favoritos" -> searchedTracks.filter { favorites.contains(it.id) }
-        "Álbuns" -> searchedTracks.distinctBy { it.albumId }
-        "Artistas" -> searchedTracks.distinctBy { it.artist.lowercase() }
+    val visibleTracks = when {
+        selectedTab == "Favoritos" -> searchedTracks.filter { favorites.contains(it.id) }
+        selectedTab == "Playlists" && selectedPlaylist != null -> {
+            val ids = prefs.getString("playlist_ids_${selectedPlaylist.hashCode()}", "").orEmpty()
+                .split(',').mapNotNull { it.toLongOrNull() }.toSet()
+            searchedTracks.filter { ids.contains(it.id) }
+        }
+        selectedTab == "Álbuns" && collectionFilterType == "album" && collectionFilterName != null -> searchedTracks.filter { it.album.equals(collectionFilterName, true) }
+        selectedTab == "Artistas" && collectionFilterType == "artist" && collectionFilterName != null -> searchedTracks.filter { it.artist.equals(collectionFilterName, true) }
+        selectedTab == "Álbuns" -> searchedTracks.distinctBy { it.albumId }
+        selectedTab == "Artistas" -> searchedTracks.distinctBy { it.artist.trim().lowercase() }
         else -> searchedTracks
     }
 
@@ -299,17 +343,17 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
         containerColor = AugInk,
         bottomBar = {
             NavigationBar(containerColor = AugPanel) {
-                listOf("Músicas", "Álbuns", "Artistas", "Favoritos", "Fila").forEach { tab ->
+                listOf("Início", "Músicas", "Álbuns", "Playlists", "Artistas").forEach { tab ->
                     NavigationBarItem(
-                        selected = selectedTab == tab || (tab == "Fila" && showQueue),
-                        onClick = { if (tab == "Fila") showQueue = true else selectedTab = tab },
+                        selected = selectedTab == tab,
+                        onClick = { selectedTab = tab; collectionFilterType = null; collectionFilterName = null; if (tab != "Playlists") selectedPlaylist = null },
                         icon = {
                             Icon(
                                 when (tab) {
                                     "Álbuns" -> Icons.Default.Album
+                                    "Playlists" -> Icons.Default.PlaylistPlay
                                     "Artistas" -> Icons.Default.Person
-                                    "Favoritos" -> Icons.Default.Favorite
-                                    "Fila" -> Icons.Default.QueueMusic
+                                    "Início" -> Icons.Default.Home
                                     else -> Icons.Default.LibraryMusic
                                 }, contentDescription = tab
                             )
@@ -330,8 +374,10 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
                 Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(Modifier.weight(1f)) {
-                    Text("W", color = AugLime, fontSize = 38.sp, fontWeight = FontWeight.Black, letterSpacing = 0.sp)
+                Row(Modifier.weight(1f), verticalAlignment = Alignment.Bottom) {
+                    Text("W", color = AugLime, fontSize = 38.sp, fontWeight = FontWeight.Black, letterSpacing = (-2).sp)
+                    Text("music", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Light, modifier = Modifier.padding(start = 2.dp, bottom = 5.dp))
+                    Text("  7.0", color = AugMuted, fontSize = 10.sp, modifier = Modifier.padding(bottom = 7.dp))
                 }
                 IconButton(onClick = {
                     if (hasPermission) tracks = loadTracks() else permissionLauncher.launch(permission)
@@ -360,20 +406,67 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
             )
 
             Row(Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(when (selectedTab) {
-                    "Favoritos" -> "FAVORITOS"
-                    "Álbuns" -> "ÁLBUNS"
-                    "Artistas" -> "ARTISTAS"
-                    else -> "SUA BIBLIOTECA"
-                },
-                    color = AugMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+                if (collectionFilterName != null || selectedPlaylist != null) {
+                    IconButton(onClick = { collectionFilterType = null; collectionFilterName = null; selectedPlaylist = null }) {
+                        Icon(Icons.Default.ArrowBack, "Voltar", tint = AugLime)
+                    }
+                }
+                Text(when {
+                    collectionFilterName != null -> collectionFilterName!!.uppercase()
+                    selectedPlaylist != null -> selectedPlaylist!!.uppercase()
+                    selectedTab == "Favoritos" -> "FAVORITOS"
+                    selectedTab == "Álbuns" -> "ÁLBUNS"
+                    selectedTab == "Artistas" -> "ARTISTAS"
+                    selectedTab == "Playlists" -> "PLAYLISTS"
+                    selectedTab == "Início" -> "SUA BIBLIOTECA"
+                    else -> "MÚSICAS"
+                }, color = AugMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
                 Spacer(Modifier.weight(1f))
-                Text("${visibleTracks.size} faixas", color = AugMuted, fontSize = 12.sp)
+                if (selectedTab == "Playlists" && selectedPlaylist == null) {
+                    FilledIconButton(onClick = { newPlaylistName = ""; pendingPlaylistTrack = null; showCreatePlaylist = true }, colors = IconButtonDefaults.filledIconButtonColors(containerColor = AugLime, contentColor = AugInk), modifier = Modifier.size(38.dp)) { Icon(Icons.Default.Add, "Criar playlist") }
+                } else Text("${visibleTracks.size} faixas", color = AugMuted, fontSize = 12.sp)
             }
 
             when {
                 !hasPermission -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Button(onClick = { permissionLauncher.launch(permission) }) { Text("Permitir acesso às músicas") }
+                }
+                selectedTab == "Playlists" && selectedPlaylist == null -> {
+                    if (playlistNames.isEmpty()) {
+                        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.PlaylistAdd, null, tint = AugLime, modifier = Modifier.size(44.dp))
+                                Text("Crie sua primeira playlist", color = Color.White, modifier = Modifier.padding(top = 8.dp))
+                                Text("Toque no + para começar", color = AugMuted, fontSize = 12.sp)
+                            }
+                        }
+                    } else LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 12.dp)) {
+                        items(playlistNames.sorted(), key = { it }) { name ->
+                            val ids = prefs.getString("playlist_ids_${name.hashCode()}", "").orEmpty().split(',').mapNotNull { it.toLongOrNull() }.toSet()
+                            val cover = tracks.firstOrNull { ids.contains(it.id) }
+                            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable { selectedPlaylist = name }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                if (cover != null) AlbumArtwork(cover, 56.dp) else Box(Modifier.size(56.dp).clip(RoundedCornerShape(14.dp)).background(AugPanel), contentAlignment = Alignment.Center) { Icon(Icons.Default.QueueMusic, null, tint = AugLime) }
+                                Column(Modifier.weight(1f).padding(horizontal = 12.dp)) { Text(name, color = Color.White, fontWeight = FontWeight.SemiBold); Text("${ids.size} músicas", color = AugMuted, fontSize = 12.sp) }
+                                IconButton(onClick = { selectedPlaylist = name }) { Icon(Icons.Default.ChevronRight, "Abrir playlist", tint = AugMuted) }
+                            }
+                        }
+                    }
+                }
+                (selectedTab == "Álbuns" && collectionFilterName == null) || (selectedTab == "Artistas" && collectionFilterName == null) -> {
+                    val groups = if (selectedTab == "Álbuns") searchedTracks.distinctBy { it.albumId } else searchedTracks.distinctBy { it.artist.trim().lowercase() }
+                    LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.weight(1f), contentPadding = PaddingValues(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        gridItems(groups, key = { if (selectedTab == "Álbuns") "album-${it.albumId}" else "artist-${it.artist.lowercase()}" }) { item ->
+                            Card(Modifier.fillMaxWidth().clickable { collectionFilterType = if (selectedTab == "Álbuns") "album" else "artist"; collectionFilterName = if (selectedTab == "Álbuns") item.album else item.artist }, colors = CardDefaults.cardColors(containerColor = AugPanel), shape = RoundedCornerShape(18.dp)) {
+                                Column(Modifier.padding(10.dp)) {
+                                    if (selectedTab == "Artistas") {
+                                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { ArtistArtwork(item, 112.dp) }
+                                    } else AlbumArtwork(item, 150.dp, Modifier.fillMaxWidth())
+                                    Text(if (selectedTab == "Álbuns") item.album else item.artist, color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 9.dp))
+                                    Text(if (selectedTab == "Álbuns") item.artist else "${tracks.count { it.artist.equals(item.artist, true) }} músicas", color = AugMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                            }
+                        }
+                    }
                 }
                 visibleTracks.isEmpty() -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -521,6 +614,7 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
                             }
                             IconButton(onClick = { showTimer = true }) { Icon(Icons.Default.Timer, "Timer", tint = AugMuted) }
                             IconButton(onClick = { showQueue = true }) { Icon(Icons.Default.QueueMusic, "Fila", tint = AugMuted) }
+                            IconButton(onClick = { showEqualizer = true }) { Icon(Icons.Default.Equalizer, "Equalizador", tint = AugLime) }
                         }
                     }
                 }
@@ -558,6 +652,7 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
             onTimer = { showTimer = true },
             onSpeed = { showSpeed = true },
             onQueue = { showFullPlayer = false; showQueue = true },
+            onEqualizer = { showEqualizer = true },
             onMore = { menuTrack = currentTrack }
         )
     }
@@ -702,7 +797,11 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
                 menuTrack = null
             }
             MenuAction(Icons.Default.Edit, "Editar informações") {
-                android.widget.Toast.makeText(context, "A edição de tags será adicionada na próxima etapa.", android.widget.Toast.LENGTH_SHORT).show()
+                editingTrack = track
+                editTitle = track.title
+                editArtist = track.artist
+                editAlbum = track.album
+                editCoverUri = track.coverOverride?.toString()
                 menuTrack = null
             }
             MenuAction(Icons.Default.PlayCircle, "Definir como toque") {
@@ -714,11 +813,99 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
                 menuTrack = null
             }
             MenuAction(Icons.Default.PlaylistAdd, "Adicionar à playlist") {
-                android.widget.Toast.makeText(context, "As playlists persistentes serão adicionadas na próxima etapa.", android.widget.Toast.LENGTH_SHORT).show()
+                pendingPlaylistTrack = track
+                showAddToPlaylist = true
                 menuTrack = null
             }
             Spacer(Modifier.height(24.dp))
         }
+    }
+
+    val coverPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            editCoverUri = uri.toString()
+            runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+        }
+    }
+
+    editingTrack?.let { track ->
+        AlertDialog(
+            onDismissRequest = { editingTrack = null },
+            title = { Text("Editar informações") },
+            text = {
+                Column(Modifier.fillMaxWidth().heightIn(max = 500.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(editTitle, { editTitle = it }, label = { Text("Título da música") }, singleLine = true)
+                    OutlinedTextField(editArtist, { editArtist = it }, label = { Text("Artista") }, singleLine = true)
+                    OutlinedTextField(editAlbum, { editAlbum = it }, label = { Text("Álbum") }, singleLine = true)
+                    if (editCoverUri != null) AsyncImage(model = editCoverUri, contentDescription = "Capa escolhida", modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.Crop)
+                    OutlinedButton(onClick = { coverPicker.launch(arrayOf("image/*")) }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Image, null); Spacer(Modifier.width(8.dp)); Text("Escolher capa da galeria") }
+                    Text("As alterações ficam salvas no WMusic e não reescrevem as tags internas do arquivo de áudio.", color = AugMuted, fontSize = 11.sp)
+                }
+            },
+            confirmButton = { TextButton(onClick = {
+                prefs.edit().putString("track_${track.id}_title", editTitle.trim().ifBlank { "Música sem título" })
+                    .putString("track_${track.id}_artist", editArtist.trim().ifBlank { "Artista Desconhecido" })
+                    .putString("track_${track.id}_album", editAlbum.trim().ifBlank { "Álbum desconhecido" })
+                    .putString("track_${track.id}_cover", editCoverUri).apply()
+                tracks = loadTracks()
+                editingTrack = null
+            }) { Text("Salvar", color = AugLime) } },
+            dismissButton = { TextButton(onClick = { editingTrack = null }) { Text("Cancelar") } }
+        )
+    }
+
+    if (showCreatePlaylist) {
+        AlertDialog(onDismissRequest = { showCreatePlaylist = false }, title = { Text("Nova playlist") },
+            text = { OutlinedTextField(newPlaylistName, { newPlaylistName = it }, label = { Text("Nome da playlist") }, singleLine = true) },
+            confirmButton = { TextButton(onClick = {
+                val name = newPlaylistName.trim()
+                if (name.isNotBlank()) {
+                    if (!playlistNames.contains(name)) playlistNames.add(name)
+                    prefs.edit().putStringSet("playlist_names", playlistNames.toSet()).apply()
+                    val pending = pendingPlaylistTrack
+                    if (pending != null) {
+                        val key = "playlist_ids_${name.hashCode()}"
+                        val ids = prefs.getString(key, "").orEmpty().split(',').filter { it.isNotBlank() }.toMutableSet()
+                        ids.add(pending.id.toString()); prefs.edit().putString(key, ids.joinToString(",")).apply()
+                        pendingPlaylistTrack = null
+                    }
+                    selectedTab = "Playlists"; selectedPlaylist = null
+                }
+                showCreatePlaylist = false
+            }) { Text("Criar", color = AugLime) } },
+            dismissButton = { TextButton(onClick = { showCreatePlaylist = false; pendingPlaylistTrack = null }) { Text("Cancelar") } })
+    }
+
+    if (showAddToPlaylist) {
+        AlertDialog(onDismissRequest = { showAddToPlaylist = false }, title = { Text("Adicionar à playlist") },
+            text = { Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (playlistNames.isEmpty()) Text("Você ainda não criou playlists.", color = AugMuted)
+                playlistNames.sorted().forEach { name -> TextButton(onClick = {
+                    pendingPlaylistTrack?.let { track ->
+                        val key = "playlist_ids_${name.hashCode()}"
+                        val ids = prefs.getString(key, "").orEmpty().split(',').filter { it.isNotBlank() }.toMutableSet()
+                        ids.add(track.id.toString()); prefs.edit().putString(key, ids.joinToString(",")).apply()
+                    }
+                    showAddToPlaylist = false; pendingPlaylistTrack = null
+                    android.widget.Toast.makeText(context, "Adicionada à playlist $name", android.widget.Toast.LENGTH_SHORT).show()
+                }, modifier = Modifier.fillMaxWidth()) { Text(name, color = Color.White) } }
+                TextButton(onClick = { showAddToPlaylist = false; newPlaylistName = ""; showCreatePlaylist = true }) { Text("+ Criar playlist", color = AugLime) }
+            } }, confirmButton = { TextButton(onClick = { showAddToPlaylist = false; pendingPlaylistTrack = null }) { Text("Fechar") } })
+    }
+
+    if (showEqualizer) {
+        EqualizerDialog(
+            sessionId = prefs.getInt("audio_session_id", 0),
+            enabled = equalizerEnabled,
+            onEnabledChange = { equalizerEnabled = it },
+            bassBoost = bassBoostValue,
+            onBassBoost = { bassBoostValue = it },
+            virtualizer = virtualizerValue,
+            onVirtualizer = { virtualizerValue = it },
+            reverb = reverbValue,
+            onReverb = { reverbValue = it },
+            onDismiss = { showEqualizer = false }
+        )
     }
 
     if (showQueue) {
@@ -779,7 +966,17 @@ private fun albumArtworkUri(track: AudioTrack): Uri =
     Uri.parse("content://media/external/audio/albumart/${track.albumId}")
 
 private fun artworkModel(track: AudioTrack): Any =
-    coverFile(track) ?: albumArtworkUri(track)
+    track.coverOverride ?: coverFile(track) ?: albumArtworkUri(track)
+
+@Composable
+private fun ArtistArtwork(track: AudioTrack, size: androidx.compose.ui.unit.Dp) {
+    Box(Modifier.size(size).clip(CircleShape).background(AugPanel), contentAlignment = Alignment.Center) {
+        Icon(Icons.Default.Person, null, tint = AugMuted, modifier = Modifier.size(size * .55f))
+        if (track.coverOverride != null || coverFile(track) != null) {
+            AsyncImage(model = artworkModel(track), contentDescription = "Imagem de ${track.artist}", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape))
+        }
+    }
+}
 
 @Composable
 private fun AlbumArtwork(track: AudioTrack, size: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier) {
@@ -824,6 +1021,7 @@ private fun FullPlayerDialog(
     onTimer: () -> Unit,
     onSpeed: () -> Unit,
     onQueue: () -> Unit,
+    onEqualizer: () -> Unit,
     onMore: () -> Unit
 ) {
     val context = LocalContext.current
@@ -926,6 +1124,7 @@ private fun FullPlayerDialog(
                     IconButton(onClick = onTimer) { Icon(Icons.Default.Timer, "Timer", tint = Color.White) }
                     TextButton(onClick = onSpeed) { Text("${playbackSpeed}×", color = AugLime, fontWeight = FontWeight.Bold) }
                     IconButton(onClick = onQueue) { Icon(Icons.Default.QueueMusic, "Fila", tint = Color.White) }
+                    IconButton(onClick = onEqualizer) { Icon(Icons.Default.Equalizer, "Equalizador", tint = AugLime) }
                 }
                 val format = track.path?.substringAfterLast('.', "")?.uppercase()?.takeIf { it.isNotBlank() } ?: "ÁUDIO"
                 val kbps = if (track.duration > 0L && track.size > 0L) (track.size * 8L / track.duration).coerceAtLeast(1L) else 0L
@@ -937,6 +1136,150 @@ private fun FullPlayerDialog(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EqualizerDialog(
+    sessionId: Int,
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit,
+    bassBoost: Float,
+    onBassBoost: (Float) -> Unit,
+    virtualizer: Float,
+    onVirtualizer: (Float) -> Unit,
+    reverb: Float,
+    onReverb: (Float) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val frequencies = listOf("32", "64", "125", "250", "500", "1k", "2k", "4k", "8k", "16k")
+    val presets = listOf("Flat", "Acoustic", "Bass Booster", "Bass Reducer")
+    val presetValues = listOf(
+        listOf(0f,0f,0f,0f,0f,0f,0f,0f,0f,0f),
+        listOf(4f,3f,2f,0f,1f,2f,3f,2f,1f,0f),
+        listOf(9f,8f,6f,4f,1f,0f,0f,0f,0f,0f),
+        listOf(-8f,-7f,-5f,-3f,0f,0f,0f,0f,0f,0f)
+    )
+    val bands = remember { mutableStateListOf<Float>().apply { addAll(List(10) { 0f }) } }
+    var selectedPreset by remember { mutableStateOf("Flat") }
+    var effectError by remember { mutableStateOf(false) }
+    var equalizer by remember { mutableStateOf<Equalizer?>(null) }
+    var bass by remember { mutableStateOf<BassBoost?>(null) }
+    var virtual by remember { mutableStateOf<Virtualizer?>(null) }
+    var room by remember { mutableStateOf<PresetReverb?>(null) }
+
+    DisposableEffect(sessionId) {
+        if (sessionId > 0) {
+            try {
+                equalizer = Equalizer(0, sessionId)
+                bass = BassBoost(0, sessionId)
+                virtual = Virtualizer(0, sessionId)
+                room = PresetReverb(0, sessionId)
+            } catch (_: Exception) { effectError = true }
+        } else effectError = true
+        onDispose {
+            runCatching { equalizer?.release() }; runCatching { bass?.release() }
+            runCatching { virtual?.release() }; runCatching { room?.release() }
+            equalizer = null; bass = null; virtual = null; room = null
+        }
+    }
+    LaunchedEffect(enabled) {
+        runCatching { equalizer?.enabled = enabled }
+        runCatching { bass?.enabled = enabled }
+        runCatching { virtual?.enabled = enabled }
+        runCatching { room?.enabled = enabled && reverb > 0f }
+    }
+    LaunchedEffect(bassBoost) { runCatching { bass?.setStrength((bassBoost * 10).toInt().toShort()) } }
+    LaunchedEffect(virtualizer) { runCatching { virtual?.setStrength((virtualizer * 10).toInt().toShort()) } }
+    LaunchedEffect(reverb, enabled) {
+        runCatching {
+            val effect = room
+            if (effect != null) {
+                effect.preset = when {
+                    reverb < 1f -> PresetReverb.PRESET_NONE
+                    reverb < 35f -> PresetReverb.PRESET_SMALLROOM
+                    reverb < 65f -> PresetReverb.PRESET_MEDIUMROOM
+                    else -> PresetReverb.PRESET_LARGEHALL
+                }
+                effect.enabled = enabled && reverb > 0f
+            }
+        }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Equalizador", fontWeight = FontWeight.Bold)
+                    Text("10 bandas · áudio do dispositivo", color = AugMuted, fontSize = 11.sp)
+                }
+                Switch(checked = enabled, onCheckedChange = onEnabledChange, colors = SwitchDefaults.colors(checkedThumbColor = AugInk, checkedTrackColor = AugLime))
+            }
+        },
+        text = {
+            Column(Modifier.fillMaxWidth().heightIn(max = 560.dp).verticalScroll(rememberScrollState())) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    presets.forEachIndexed { index, preset ->
+                        TextButton(onClick = {
+                            selectedPreset = preset
+                            presetValues[index].forEachIndexed { i, value -> bands[i] = value }
+                            runCatching {
+                                val eq = equalizer
+                                if (eq != null && eq.numberOfBands > 0) {
+                                    for (band in 0 until eq.numberOfBands.toInt()) {
+                                        val hz = eq.getCenterFreq(band.toShort()) / 1000f
+                                        val target = frequencies.indices.minByOrNull { abs(frequencies[it].replace("k", "000").toFloat() - hz) } ?: 0
+                                        eq.setBandLevel(band.toShort(), (bands[target] * 100).toInt().toShort())
+                                    }
+                                }
+                            }
+                        }, contentPadding = PaddingValues(horizontal = 3.dp)) {
+                            Text(preset, color = if (selectedPreset == preset) AugLime else AugMuted, fontSize = 9.sp, maxLines = 1)
+                        }
+                    }
+                }
+                Row(Modifier.fillMaxWidth().height(235.dp).padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+                    bands.forEachIndexed { index, value ->
+                        Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("+12", fontSize = 8.sp, color = AugMuted)
+                            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                Slider(
+                                    value = value,
+                                    onValueChange = { v ->
+                                        bands[index] = v
+                                        selectedPreset = "Personalizado"
+                                        runCatching {
+                                            val eq = equalizer
+                                            if (eq != null && eq.numberOfBands > 0) {
+                                                val targetHz = frequencies[index].replace("k", "000").toFloat()
+                                                val band = (0 until eq.numberOfBands.toInt()).minByOrNull { abs(eq.getCenterFreq(it.toShort()) / 1000f - targetHz) } ?: 0
+                                                eq.setBandLevel(band.toShort(), (v * 100).toInt().toShort())
+                                            }
+                                        }
+                                    },
+                                    valueRange = -12f..12f,
+                                    modifier = Modifier.fillMaxHeight().width(30.dp),
+                                    colors = SliderDefaults.colors(thumbColor = AugLime, activeTrackColor = AugLime, inactiveTrackColor = AugMuted.copy(alpha = .45f))
+                                )
+                            }
+                            Text("0", fontSize = 8.sp, color = AugMuted)
+                            Text(frequencies[index], fontSize = 8.sp, color = Color.White, maxLines = 1)
+                            Text("-12", fontSize = 8.sp, color = AugMuted)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+                Text("Bass Boost · ${bassBoost.toInt()}%", color = Color.White, fontWeight = FontWeight.SemiBold)
+                Slider(value = bassBoost, onValueChange = onBassBoost, valueRange = 0f..100f, colors = SliderDefaults.colors(thumbColor = AugLime, activeTrackColor = AugLime))
+                Text("Virtualizer · ${virtualizer.toInt()}%", color = Color.White, fontWeight = FontWeight.SemiBold)
+                Slider(value = virtualizer, onValueChange = onVirtualizer, valueRange = 0f..100f, colors = SliderDefaults.colors(thumbColor = AugLime, activeTrackColor = AugLime))
+                Text("Reverb · ${reverb.toInt()}%", color = Color.White, fontWeight = FontWeight.SemiBold)
+                Slider(value = reverb, onValueChange = onReverb, valueRange = 0f..100f, colors = SliderDefaults.colors(thumbColor = AugLime, activeTrackColor = AugLime))
+                if (effectError) Text("O aparelho não disponibilizou uma sessão de áudio compatível; os controles podem não aplicar efeitos nesta reprodução.", color = AugMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Concluir", color = AugLime) } }
+    )
 }
 
 @Composable
