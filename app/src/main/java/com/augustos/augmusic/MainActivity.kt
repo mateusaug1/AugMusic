@@ -37,7 +37,6 @@ import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
-import com.google.common.util.concurrent.ListenableFuture
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import kotlinx.coroutines.delay
@@ -60,7 +59,7 @@ private data class AudioTrack(
 )
 
 class MainActivity : ComponentActivity() {
-    private var controllerFuture: ListenableFuture<MediaController>? = null
+    private var controllerFuture: Any? = null
     private val controllerState = mutableStateOf<MediaController?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,11 +92,13 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        val future = controllerFuture
-        controllerFuture = null
-        if (future != null) {
-            MediaController.releaseFuture(future)
+        controllerFuture?.let {
+            @Suppress("UNCHECKED_CAST")
+            MediaController.releaseFuture(
+                it as java.util.concurrent.Future<MediaController>
+            )
         }
+        controllerFuture = null
         controllerState.value = null
         super.onDestroy()
     }
