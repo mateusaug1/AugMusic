@@ -197,7 +197,11 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
     var tracks by remember { mutableStateOf(emptyList<AudioTrack>()) }
     var hasPermission by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf("") }
-    var selectedTab by remember { mutableStateOf("Início") }
+    val sortOptions = listOf("Nome", "Álbum", "Artista", "Artista do álbum", "Gênero", "Número da faixa", "Duração", "Ano", "Compositor", "Data modificada", "Data adicionada")
+    var sortBy by remember { mutableStateOf("Nome") }
+    var sortDescending by remember { mutableStateOf(false) }
+    var showSortSheet by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableStateOf("Músicas") }
     var menuTrack by remember { mutableStateOf<AudioTrack?>(null) }
     var detailsTrack by remember { mutableStateOf<AudioTrack?>(null) }
     var showQueue by remember { mutableStateOf(false) }
@@ -223,6 +227,10 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
     var pendingPlaylistTrack by remember { mutableStateOf<AudioTrack?>(null) }
     var showAddToPlaylist by remember { mutableStateOf(false) }
     val prefs = remember { context.getSharedPreferences("wmusic_preferences", android.content.Context.MODE_PRIVATE) }
+    LaunchedEffect(prefs) {
+        sortBy = prefs.getString("sort_by", "Nome") ?: "Nome"
+        sortDescending = prefs.getBoolean("sort_descending", false)
+    }
     val playlistNames = remember {
         mutableStateListOf<String>().apply { addAll(prefs.getStringSet("playlist_names", emptySet()) ?: emptySet()) }
     }
@@ -299,6 +307,16 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
 
     val searchedTracks = tracks.filter { track ->
         "${track.title} ${track.artist} ${track.album}".contains(search, true)
+    }.let { list ->
+        val comparator = when (sortBy) {
+            "Álbum" -> compareBy<AudioTrack> { it.album.lowercase() }.thenBy { it.title.lowercase() }
+            "Artista", "Artista do álbum" -> compareBy<AudioTrack> { it.artist.lowercase() }.thenBy { it.title.lowercase() }
+            "Duração" -> compareBy<AudioTrack> { it.duration }
+            "Data adicionada" -> compareBy<AudioTrack> { it.dateAdded }
+            "Data modificada" -> compareBy<AudioTrack> { it.path?.let { p -> File(p).lastModified() } ?: 0L }
+            else -> compareBy<AudioTrack> { it.title.lowercase() }
+        }
+        (if (sortDescending) list.sortedWith(comparator.reversed()) else list.sortedWith(comparator))
     }
     val visibleTracks = when {
         selectedTab == "Favoritos" -> searchedTracks.filter { favorites.contains(it.id) }
@@ -343,7 +361,7 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
         containerColor = AugInk,
         bottomBar = {
             NavigationBar(containerColor = AugPanel) {
-                listOf("Início", "Músicas", "Álbuns", "Playlists", "Artistas").forEach { tab ->
+                listOf("Músicas", "Álbuns", "Artistas", "Playlists").forEach { tab ->
                     NavigationBarItem(
                         selected = selectedTab == tab,
                         onClick = { selectedTab = tab; collectionFilterType = null; collectionFilterName = null; if (tab != "Playlists") selectedPlaylist = null },
@@ -353,7 +371,6 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
                                     "Álbuns" -> Icons.Default.Album
                                     "Playlists" -> Icons.Default.PlaylistPlay
                                     "Artistas" -> Icons.Default.Person
-                                    "Início" -> Icons.Default.Home
                                     else -> Icons.Default.LibraryMusic
                                 }, contentDescription = tab
                             )
@@ -377,7 +394,7 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.Bottom) {
                     Text("W", color = AugLime, fontSize = 38.sp, fontWeight = FontWeight.Black, letterSpacing = (-2).sp)
                     Text("music", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Light, modifier = Modifier.padding(start = 2.dp, bottom = 5.dp))
-                    Text("  7.0", color = AugMuted, fontSize = 10.sp, modifier = Modifier.padding(bottom = 7.dp))
+                    Text("  10.0", color = AugMuted, fontSize = 10.sp, modifier = Modifier.padding(bottom = 7.dp))
                 }
                 IconButton(onClick = {
                     if (hasPermission) tracks = loadTracks() else permissionLauncher.launch(permission)
@@ -418,12 +435,17 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
                     selectedTab == "Álbuns" -> "ÁLBUNS"
                     selectedTab == "Artistas" -> "ARTISTAS"
                     selectedTab == "Playlists" -> "PLAYLISTS"
-                    selectedTab == "Início" -> "SUA BIBLIOTECA"
                     else -> "MÚSICAS"
                 }, color = AugMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
                 Spacer(Modifier.weight(1f))
                 if (selectedTab == "Playlists" && selectedPlaylist == null) {
                     FilledIconButton(onClick = { newPlaylistName = ""; pendingPlaylistTrack = null; showCreatePlaylist = true }, colors = IconButtonDefaults.filledIconButtonColors(containerColor = AugLime, contentColor = AugInk), modifier = Modifier.size(38.dp)) { Icon(Icons.Default.Add, "Criar playlist") }
+                } else if (selectedTab == "Músicas" && collectionFilterName == null) {
+                    TextButton(onClick = { showSortSheet = true }) {
+                        Icon(Icons.Default.Sort, null, tint = AugLime, modifier = Modifier.size(17.dp))
+                        Spacer(Modifier.width(5.dp))
+                        Text("ORDENAR POR · $sortBy", color = AugLime, fontSize = 10.sp, maxLines = 1)
+                    }
                 } else Text("${visibleTracks.size} faixas", color = AugMuted, fontSize = 12.sp)
             }
 
@@ -891,6 +913,46 @@ private fun AugMusicScreen(controller: MediaController?, loadTracks: () -> List<
                 }, modifier = Modifier.fillMaxWidth()) { Text(name, color = Color.White) } }
                 TextButton(onClick = { showAddToPlaylist = false; newPlaylistName = ""; showCreatePlaylist = true }) { Text("+ Criar playlist", color = AugLime) }
             } }, confirmButton = { TextButton(onClick = { showAddToPlaylist = false; pendingPlaylistTrack = null }) { Text("Fechar") } })
+    }
+
+    if (showSortSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showSortSheet = false },
+            containerColor = AugPanel,
+            contentColor = Color.White
+        ) {
+            Text("ORDENAR MÚSICAS", Modifier.padding(horizontal = 22.dp), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                FilterChip(
+                    selected = !sortDescending,
+                    onClick = { sortDescending = false; prefs.edit().putBoolean("sort_descending", false).apply() },
+                    label = { Text("↑ CRESC") },
+                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = AugLime, selectedLabelColor = AugInk)
+                )
+                FilterChip(
+                    selected = sortDescending,
+                    onClick = { sortDescending = true; prefs.edit().putBoolean("sort_descending", true).apply() },
+                    label = { Text("↓ DECRESC") },
+                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = AugLime, selectedLabelColor = AugInk)
+                )
+            }
+            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 460.dp)) {
+                items(sortOptions) { option ->
+                    Row(
+                        Modifier.fillMaxWidth().clickable {
+                            sortBy = option
+                            prefs.edit().putString("sort_by", option).apply()
+                            showSortSheet = false
+                        }.padding(horizontal = 22.dp, vertical = 13.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(option, Modifier.weight(1f), color = if (sortBy == option) AugLime else Color.White)
+                        if (sortBy == option) Icon(Icons.Default.Check, null, tint = AugLime)
+                    }
+                }
+            }
+            Spacer(Modifier.height(24.dp))
+        }
     }
 
     if (showEqualizer) {

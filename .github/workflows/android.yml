@@ -1,8 +1,8 @@
-name: Build WMusic APK
+name: Build WMusic V10 APK
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   workflow_dispatch:
 
 permissions:
@@ -17,40 +17,34 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configurar Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Verificar Android SDK
+      - name: Configurar Android SDK
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
-          find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager
-
-      - name: Instalar componentes Android
-        run: |
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
           if [ -z "$SDKMANAGER" ]; then
-            echo "ERRO: sdkmanager não encontrado"
+            echo "Erro: sdkmanager não encontrado"
             exit 1
           fi
-          yes | "$SDKMANAGER" --licenses || true
-          "$SDKMANAGER" --install \
-            "platform-tools" \
-            "platforms;android-35" \
-            "build-tools;35.0.0"
+          yes | "$SDKMANAGER" --licenses
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Garantir permissão do Gradle Wrapper
+        run: chmod +x gradlew
+
       - name: Compilar APK
-        run: |
-          chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug
+        run: ./gradlew assembleDebug
 
       - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
         with:
-          name: WMusic-V7-debug
+          name: WMusic-V10-debug
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

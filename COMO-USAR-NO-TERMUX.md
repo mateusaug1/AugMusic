@@ -1,26 +1,43 @@
-# Aplicar WMusic V7 pelo Termux
+# Aplicar pelo Termux e enviar ao GitHub
 
-1. Baixe `WMusic-V7-completo.zip` para a pasta Download do Android.
-2. No Termux, rode:
+1. Baixe `WMusic-V10-GitHub.zip` para a pasta Downloads do celular.
+2. No Termux, execute:
 
 ```bash
 termux-setup-storage
-cd ~/AugMusic
-cp -a . ../AugMusic-backup-v7-antes
-cp /storage/emulated/0/Download/WMusic-V7-completo.zip .
-unzip -o WMusic-V7-completo.zip -x '.git/*'
-chmod +x gradlew
-git status --short
+pkg install unzip git -y
+cd ~
+# Se ainda não tiver o repositório clonado:
+git clone URL_DO_SEU_REPOSITORIO AugMusic
 ```
 
-3. Confira as mudanças antes de enviar ao GitHub:
+Troque `URL_DO_SEU_REPOSITORIO` pela URL real do seu repositório. Se `~/AugMusic` já existe e tem a pasta `.git`, não clone de novo.
+
+3. Extraia e prepare a atualização:
 
 ```bash
-git add -A
-git commit -m "feat: WMusic V7 grid editor playlists equalizer"
-git push origin main
+cp /storage/emulated/0/Download/WMusic-V10-GitHub.zip ~/
+cd ~/AugMusic
+bash APLICAR-V10-NO-TERMUX.sh
 ```
 
-4. Abra `https://github.com/mateusaug1/AugMusic/actions` para conferir a compilação.
+Observação: o script está dentro do ZIP; caso não esteja no repositório antes de executar, extraia o ZIP numa pasta temporária e rode o script dali, ou use os comandos manuais abaixo.
 
-O backup é criado antes de copiar/extrair. O ZIP contém o projeto Android, não um APK já compilado.
+Comandos manuais (mais simples):
+
+```bash
+cd ~/AugMusic
+mkdir -p ~/AugMusic-backup-manual
+cp -a . ~/AugMusic-backup-manual/
+unzip -o /storage/emulated/0/Download/WMusic-V10-GitHub.zip -x '.git/*'
+chmod +x gradlew
+git diff --stat
+git status --short
+git add -A
+git commit -m "feat: upgrade WMusic to V10 sorting and navigation"
+git push origin HEAD
+```
+
+4. No GitHub, abra **Actions** e confira o workflow. Baixe `WMusic-V10-debug` nos artefatos se a compilação terminar com sucesso.
+
+O push envia código-fonte, não instala o APK no celular. A compilação precisa terminar com sucesso para haver APK.
