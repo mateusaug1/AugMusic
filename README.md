@@ -51,18 +51,32 @@ A proposta visual prioriza contraste, clareza e uma interface sem excesso de ele
 AugMusic/
 ├── .github/workflows/
 ├── app/
+│   ├── proguard-rules.pro
 │   └── src/main/
 │       ├── java/com/augustos/augmusic/
-│       │   ├── MainActivity.kt
-│       │   └── MusicService.kt
+│       │   ├── MainActivity.kt        # Activity + conexão com o serviço
+│       │   ├── AugMusicScreen.kt      # tela principal (abas, listas, menus)
+│       │   ├── PlayerUi.kt            # mini-player e player completo
+│       │   ├── Dialogs.kt             # ordenar, fila, editar, playlists, letra, timer...
+│       │   ├── EqualizerDialog.kt     # interface do equalizador
+│       │   ├── Components.kt          # capas, slider vertical, helpers de UI
+│       │   ├── MainViewModel.kt       # estado da biblioteca, favoritos, playlists
+│       │   ├── PlayerState.kt         # estado observável do player
+│       │   ├── MusicService.kt        # ExoPlayer + MediaSession (segundo plano)
+│       │   ├── AudioEffects.kt        # equalizador/bass/virtualizer/reverb persistentes
+│       │   ├── SleepTimer.kt          # timer de soneca (vive no serviço)
+│       │   ├── LibraryRepository.kt   # leitura do MediaStore (fora da UI thread)
+│       │   ├── ArtworkLoader.kt       # cache de capas
+│       │   ├── ArtworkProvider.kt     # capa para notificação/tela de bloqueio
+│       │   ├── LyricsLoader.kt        # letras .lrc/.txt
+│       │   ├── UserData.kt            # preferências do usuário
+│       │   └── Models.kt, Formatters.kt, Theme.kt
 │       ├── res/
 │       └── AndroidManifest.xml
 ├── assets/
-│   ├── icon_music.png
-│   ├── icon_music_app.png
-│   └── icon_music-placeholder.svg
 ├── gradle/wrapper/
 ├── index.html
+├── CHANGELOG.md
 ├── README.md
 ├── build.gradle.kts
 ├── settings.gradle.kts
@@ -101,6 +115,10 @@ A compilação depende das versões e ferramentas exigidas pelo ambiente Android
 ## Landing page
 
 A página de apresentação está no arquivo [`index.html`](index.html). Para visualizar a página, abra esse arquivo em um navegador ou publique-o em uma hospedagem de sites estáticos.
+
+## Novidades da V12.0
+
+Veja o [`CHANGELOG.md`](CHANGELOG.md) para a lista completa de correções, desempenho e estabilidade.
 
 ## Status
 

@@ -12,8 +12,19 @@ android {
         applicationId = "com.augustos.augmusic"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10
-        versionName = "10.0.0"
+        versionCode = 12
+        versionName = "12.0.0"
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
     }
 
     buildFeatures { compose = true }
@@ -22,6 +33,15 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+
+    lint {
+        // O lint não deve derrubar o build de release por avisos não-fatais.
+        abortOnError = false
+    }
+
+    packaging {
+        resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
+    }
 }
 
 dependencies {
@@ -36,10 +56,11 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("androidx.palette:palette-ktx:1.0.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.media3:media3-exoplayer:1.5.1")
     implementation("androidx.media3:media3-session:1.5.1")
-    implementation("com.google.guava:guava:33.3.1-android")
     implementation("androidx.media3:media3-common:1.5.1")
+    implementation("com.google.guava:guava:33.3.1-android")
     implementation("androidx.core:core-ktx:1.15.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tema escuro: antes era Material.Light, o que deixava os ícones da barra de
+         status escuros sobre fundo escuro (ilegíveis) e causava flash branco ao abrir. -->
+    <style name="Theme.WMusic" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/wmusic_ink</item>
+        <item name="android:colorBackground">@color/wmusic_ink</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
