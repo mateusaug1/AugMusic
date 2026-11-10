@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -19,18 +20,24 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Barras do sistema transparentes com ícones claros (o fundo do app é escuro).
-        enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
-        )
+        enableEdgeToEdge()
         AudioEffects.init(applicationContext)
         connectController()
 
         setContent {
-            WMusicTheme {
-                val vm: MainViewModel = viewModel()
-                AugMusicScreen(controller = controllerState.value, vm = vm)
+            val vm: MainViewModel = viewModel()
+            val settings = vm.settings
+            WMusicTheme(settings) {
+                // Ícones das barras do sistema acompanham o tema escolhido (claro/escuro/automático).
+                val dark = isDarkFor(settings)
+                DisposableEffect(dark) {
+                    enableEdgeToEdge(
+                        statusBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT) { dark },
+                        navigationBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT) { dark }
+                    )
+                    onDispose { }
+                }
+                AugMusicApp(controller = controllerState.value, vm = vm)
             }
         }
     }
@@ -52,8 +59,7 @@ class MainActivity : ComponentActivity() {
                 controllerState.value = null
                 if (controllerFuture === future) controllerFuture = null
             }
-            // ContextCompat.getMainExecutor: Context.getMainExecutor() só existe a partir da API 28,
-            // e o minSdk do app é 26 (a versão anterior quebrava no Android 8.0/8.1).
+            // ContextCompat.getMainExecutor: Context.getMainExecutor() só existe a partir da API 28 (minSdk é 26).
         }, ContextCompat.getMainExecutor(this))
     }
 

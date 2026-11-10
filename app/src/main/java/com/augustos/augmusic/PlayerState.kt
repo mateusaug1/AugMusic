@@ -25,8 +25,12 @@ import kotlinx.coroutines.delay
  * escrevia estados lidos pela tela inteira, recompondo lista, busca e menus o tempo todo
  * (mesmo com a música pausada).
  */
+/** Formato real do áudio em reprodução, lido do decodificador (ExoPlayer). -1 = desconhecido. */
+internal data class AudioFormatInfo(val sampleRate: Int, val bitrate: Int, val channels: Int, val mime: String?)
+
 @Stable
 internal class PlayerState {
+    var audioFormat by mutableStateOf<AudioFormatInfo?>(null)
     var currentMediaId by mutableStateOf<Long?>(null)
     var isPlaying by mutableStateOf(false)
     var showPause by mutableStateOf(false)
@@ -54,6 +58,23 @@ internal class PlayerState {
         val duration = player.duration
         durationMs = if (duration == C.TIME_UNSET) 0L else duration.coerceAtLeast(0L)
         positionMs = player.currentPosition.coerceAtLeast(0L)
+    }
+
+    fun syncTracks(player: Player) {
+        var info: AudioFormatInfo? = null
+        for (group in player.currentTracks.groups) {
+            if (group.type != C.TRACK_TYPE_AUDIO) continue
+            for (i in 0 until group.length) {
+                if (group.isTrackSelected(i)) {
+                    val f = group.getTrackFormat(i)
+                    val bitrate = if (f.averageBitrate > 0) f.averageBitrate else f.bitrate
+                    info = AudioFormatInfo(f.sampleRate, bitrate, f.channelCount, f.sampleMimeType)
+                    break
+                }
+            }
+            if (info != null) break
+        }
+        audioFormat = info
     }
 
     fun syncQueue(player: Player) {
@@ -86,6 +107,9 @@ internal fun rememberPlayerState(controller: MediaController?): PlayerState {
                 if (events.containsAny(Player.EVENT_TIMELINE_CHANGED, Player.EVENT_MEDIA_ITEM_TRANSITION)) {
                     state.syncQueue(player)
                 }
+                if (events.containsAny(Player.EVENT_TRACKS_CHANGED, Player.EVENT_MEDIA_ITEM_TRANSITION)) {
+                    state.syncTracks(player)
+                }
             }
         }
         controller.addListener(listener)
@@ -93,6 +117,7 @@ internal fun rememberPlayerState(controller: MediaController?): PlayerState {
         // vêm do player em vez de voltarem ao padrão da tela.
         state.syncBasics(controller)
         state.syncQueue(controller)
+        state.syncTracks(controller)
         onDispose { controller.removeListener(listener) }
     }
 

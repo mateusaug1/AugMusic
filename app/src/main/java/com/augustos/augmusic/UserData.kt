@@ -126,6 +126,16 @@ internal class UserData(context: Context) {
         e.apply()
     }
 
+    // ---------- configurações V13 (JSON único; entra no backup) ----------
+    fun loadSettings(): AppSettings =
+        prefs.getString("settings_v13", null)
+            ?.let { raw -> try { AppSettings.fromJson(org.json.JSONObject(raw)) } catch (_: Exception) { null } }
+            ?: AppSettings()
+
+    fun saveSettings(s: AppSettings) {
+        prefs.edit().putString("settings_v13", s.toJson().toString()).apply()
+    }
+
     // ---------- equalizador ----------
     fun loadEq(): EqSettings {
         val bands = prefs.getString("eq_bands", null)

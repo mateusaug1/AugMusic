@@ -1,5 +1,63 @@
 # WMusic — Changelog
 
+## V13.0 (versionCode 13) — redesign completo
+
+> Revisão estática (sem compilar no ambiente de desenvolvimento). Rode `./gradlew assembleDebug`
+> e teste no aparelho. Dados da V12/V10 (favoritos, playlists, edições, ordenação, equalizador) são preservados.
+
+### Nova identidade e navegação
+- Tema **Claro / Escuro / Automático**, **cor de destaque** (paleta + matiz livre), **cores adaptativas**
+  (Material You, Android 12+), **gradientes** e restaurar padrão. Tudo aplicado na hora e persistido.
+- Navegação nova: **Início · Biblioteca · Pesquisa · Configurações**, com Mini Player sempre visível acima da barra.
+- **Início:** continuar ouvindo, atalhos (aleatório, favoritas), recentes, favoritas, álbuns, artistas e estatísticas.
+- **Biblioteca:** abas Músicas/Álbuns/Artistas/Playlists/Favoritos, detalhes com Tocar/Aleatório.
+- **Pesquisa** própria (filtros Tudo/Músicas/Álbuns/Artistas, sem acentos). **Fila** com remover e "limpar a seguir".
+- Menu contextual da música redesenhado (ações rápidas + itens; exclusão pede confirmação).
+- Placeholder de capa com a identidade do WMusic.
+
+### Player Full (sobreposição com transição suave)
+- Cabeçalho (minimizar · TOCANDO AGORA · menu ⋮), capa 1:1, título (até 2 linhas) + artista + álbum + favorito,
+  barra de progresso real, anterior/play/próxima, controles secundários segmentados (aleatório · repetir
+  [off/playlist/música] · favorito), ferramentas (letras, timer, velocidade, fila, equalizador) e informações técnicas.
+- **Fundo:** dinâmico (cores da capa, contraste ≥ 4,5:1 garantido, transição suave), sólido, gradiente ou desfocado.
+  Cores calculadas uma vez por faixa e em cache (sem animação contínua).
+- **Informações técnicas reais** lidas do decodificador (formato, bitrate, frequência). Dado indisponível não é exibido.
+- Layout adaptativo (capa e espaçamentos proporcionais; rolagem em telas baixas ou com fonte grande).
+- Menu ⋮: detalhes, editar, compartilhar, playlist, toque, abrir localização, gerenciar letras, configurações do player.
+
+### Mini Player
+- Estilos Flutuante/Barra/Compacto; capa, título, artista, próxima e progresso opcionais; ação ao tocar configurável.
+
+### Configurações (8 categorias, cada uma com tela própria)
+Personalização · Player · Biblioteca · Letras · Behavior · Backup · Localizador · Sobre.
+
+### Biblioteca: Whitelist e Blacklist
+- Seletor nativo de pastas; um modo ativo por vez; listas dos dois modos preservadas; filtro em memória
+  (trocar de modo/pasta não refaz a varredura). Mensagens claras quando tudo está oculto.
+
+### Letras
+- Letras **salvas no app e associadas à faixa**: pesquisa online (LRCLIB, só quando você pede), colar/editar,
+  arquivo .lrc/.txt. Exibição estática; versão sincronizada é guardada para o futuro (sem sincronização fictícia).
+- Nova permissão: `INTERNET` (usada apenas na pesquisa de letras).
+
+### Behavior (gestos na capa do Player Full)
+- Deslizar ←/→/↑/↓, toque duplo e pressionar-e-segurar, cada um com liga/desliga e ação escolhida
+  (anterior, próxima, volume ±, play/pause, favoritar, aleatório, repetição, fila, menu). Volume contínuo ao arrastar.
+
+### Backup
+- Exporta/importa JSON (configurações, equalizador, ordenação, playlists, favoritos). Valida formato/versão, pede
+  confirmação antes de substituir, reencontra músicas por id+título ou título+artista+duração e confere as pastas.
+
+### Localizador
+- Busca em todas as músicas indexadas (inclusive as ocultas pelo filtro), mostra pasta/caminho/situação,
+  abre a pasta no app Arquivos, mostra na biblioteca e verifica arquivos indisponíveis.
+
+### Outros
+- Versão 13.0.0 / código 13, data de compilação em Sobre (`BuildConfig.BUILD_DATE`), temas `values`/`values-night`.
+- Workflow do GitHub Actions renomeado para V13.
+
+---
+
 ## V12.0 (versionCode 12)
 
 Revisão completa. Todos os recursos da V10 foram mantidos; favoritos, ordenação e edições

@@ -1,3 +1,5 @@
+import java.time.LocalDate
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +14,10 @@ android {
         applicationId = "com.augustos.augmusic"
         minSdk = 26
         targetSdk = 35
-        versionCode = 12
-        versionName = "12.0.0"
+        versionCode = 13
+        versionName = "13.0.0"
+        // Metadado de compilação exibido em Configurações › Sobre.
+        buildConfigField("String", "BUILD_DATE", "\"${LocalDate.now()}\"")
     }
 
     buildTypes {
@@ -27,7 +31,10 @@ android {
         }
     }
 
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -50,6 +57,8 @@ dependencies {
     androidTestImplementation(composeBom)
     implementation("androidx.activity:activity-compose:1.10.0")
     implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.compose.animation:animation")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")

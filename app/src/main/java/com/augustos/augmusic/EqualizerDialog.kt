@@ -36,7 +36,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 internal fun EqualizerDialog(onDismiss: () -> Unit) {
     val settings by AudioEffects.settings.collectAsStateWithLifecycle()
     val status by AudioEffects.status.collectAsStateWithLifecycle()
-    val sliderColors = SliderDefaults.colors(thumbColor = AugLime, activeTrackColor = AugLime)
+    val sliderColors = SliderDefaults.colors(thumbColor = WC.accentFg, activeTrackColor = WC.accentFg)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -46,12 +46,12 @@ internal fun EqualizerDialog(onDismiss: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Equalizador", fontWeight = FontWeight.Bold)
-                    Text("10 bandas · áudio do dispositivo", color = AugMuted, fontSize = 11.sp)
+                    Text("10 bandas · áudio do dispositivo", color = WC.muted, fontSize = 11.sp)
                 }
                 Switch(
                     checked = settings.enabled,
                     onCheckedChange = { on -> AudioEffects.update { it.copy(enabled = on) } },
-                    colors = SwitchDefaults.colors(checkedThumbColor = AugInk, checkedTrackColor = AugLime)
+                    colors = SwitchDefaults.colors(checkedThumbColor = WC.onAccent, checkedTrackColor = WC.accentFg)
                 )
             }
         },
@@ -65,7 +65,7 @@ internal fun EqualizerDialog(onDismiss: () -> Unit) {
                         ) {
                             Text(
                                 name,
-                                color = if (settings.preset == name) AugLime else AugMuted,
+                                color = if (settings.preset == name) WC.accentFg else WC.muted,
                                 fontSize = 9.sp, maxLines = 1
                             )
                         }
@@ -78,7 +78,7 @@ internal fun EqualizerDialog(onDismiss: () -> Unit) {
                 ) {
                     settings.bands.forEachIndexed { index, value ->
                         Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("+12", fontSize = 8.sp, color = AugMuted)
+                            Text("+12", fontSize = 8.sp, color = WC.muted)
                             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                                 Slider(
                                     value = value,
@@ -94,27 +94,27 @@ internal fun EqualizerDialog(onDismiss: () -> Unit) {
                                     colors = sliderColors
                                 )
                             }
-                            Text("-12", fontSize = 8.sp, color = AugMuted)
-                            Text(EQ_LABELS[index], fontSize = 8.sp, color = Color.White, maxLines = 1)
+                            Text("-12", fontSize = 8.sp, color = WC.muted)
+                            Text(EQ_LABELS[index], fontSize = 8.sp, color = WC.text, maxLines = 1)
                         }
                     }
                 }
                 Text(
                     "Bass Boost · ${settings.bassBoost.toInt()}%",
-                    color = Color.White, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 16.dp)
+                    color = WC.text, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 16.dp)
                 )
                 Slider(
                     value = settings.bassBoost,
                     onValueChange = { v -> AudioEffects.update { it.copy(bassBoost = v) } },
                     valueRange = 0f..100f, colors = sliderColors
                 )
-                Text("Virtualizer · ${settings.virtualizer.toInt()}%", color = Color.White, fontWeight = FontWeight.SemiBold)
+                Text("Virtualizer · ${settings.virtualizer.toInt()}%", color = WC.text, fontWeight = FontWeight.SemiBold)
                 Slider(
                     value = settings.virtualizer,
                     onValueChange = { v -> AudioEffects.update { it.copy(virtualizer = v) } },
                     valueRange = 0f..100f, colors = sliderColors
                 )
-                Text("Reverb · ${settings.reverb.toInt()}%", color = Color.White, fontWeight = FontWeight.SemiBold)
+                Text("Reverb · ${settings.reverb.toInt()}%", color = WC.text, fontWeight = FontWeight.SemiBold)
                 Slider(
                     value = settings.reverb,
                     onValueChange = { v -> AudioEffects.update { it.copy(reverb = v) } },
@@ -137,10 +137,10 @@ internal fun EqualizerDialog(onDismiss: () -> Unit) {
                     }
                 }
                 if (note != null) {
-                    Text(note, color = AugMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
+                    Text(note, color = WC.muted, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Concluir", color = AugLime) } }
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Concluir", color = WC.accentFg) } }
     )
 }

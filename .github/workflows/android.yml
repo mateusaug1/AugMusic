@@ -1,4 +1,4 @@
-name: Build AugMusic V12
+name: Build WMusic V13
 
 on:
   push:
@@ -38,12 +38,12 @@ jobs:
       - name: Permissão do Gradle Wrapper
         run: chmod +x gradlew
 
-      - name: Compilar AugMusic V12
+      - name: Compilar WMusic V13
         run: ./gradlew assembleDebug
 
       - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
         with:
-          name: AugMusic-V12.0-APK
+          name: WMusic-V13.0-APK
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

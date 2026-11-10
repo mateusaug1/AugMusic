@@ -54,23 +54,30 @@ AugMusic/
 │   ├── proguard-rules.pro
 │   └── src/main/
 │       ├── java/com/augustos/augmusic/
-│       │   ├── MainActivity.kt        # Activity + conexão com o serviço
-│       │   ├── AugMusicScreen.kt      # tela principal (abas, listas, menus)
-│       │   ├── PlayerUi.kt            # mini-player e player completo
-│       │   ├── Dialogs.kt             # ordenar, fila, editar, playlists, letra, timer...
-│       │   ├── EqualizerDialog.kt     # interface do equalizador
-│       │   ├── Components.kt          # capas, slider vertical, helpers de UI
-│       │   ├── MainViewModel.kt       # estado da biblioteca, favoritos, playlists
-│       │   ├── PlayerState.kt         # estado observável do player
+│       │   ├── MainActivity.kt        # Activity, tema e conexão com o serviço
+│       │   ├── AppRoot.kt             # navegação, permissões, painéis e Player Full (overlay)
+│       │   ├── AppNav.kt              # estado de navegação e ações compartilhadas
+│       │   ├── HomeScreen.kt          # tela inicial
+│       │   ├── LibraryScreen.kt       # músicas, álbuns, artistas, playlists, favoritos
+│       │   ├── SearchScreen.kt        # pesquisa
+│       │   ├── SettingsScreens.kt     # 8 categorias de configurações
+│       │   ├── FullPlayer.kt          # Player Full (fundo dinâmico, gestos)
+│       │   ├── MiniPlayer.kt          # Mini Player personalizável
+│       │   ├── Sheets.kt              # menu da música, fila, letras
+│       │   ├── Dialogs.kt             # ordenar, editar, playlists, timer, velocidade
+│       │   ├── EqualizerDialog.kt     # equalizador de 10 bandas
+│       │   ├── Components.kt          # capas, chips, estados vazios
+│       │   ├── Theme.kt               # tema claro/escuro/automático + cor de destaque
+│       │   ├── AppSettings.kt         # todas as preferências (JSON)
+│       │   ├── MainViewModel.kt       # estado: biblioteca, filtros, playlists, backup
+│       │   ├── LibraryFilter.kt       # Whitelist/Blacklist por pasta
+│       │   ├── BackupManager.kt       # exportar/validar/restaurar JSON
+│       │   ├── LyricsLoader.kt        # letras salvas, arquivos e pesquisa (LRCLIB)
 │       │   ├── MusicService.kt        # ExoPlayer + MediaSession (segundo plano)
-│       │   ├── AudioEffects.kt        # equalizador/bass/virtualizer/reverb persistentes
-│       │   ├── SleepTimer.kt          # timer de soneca (vive no serviço)
-│       │   ├── LibraryRepository.kt   # leitura do MediaStore (fora da UI thread)
-│       │   ├── ArtworkLoader.kt       # cache de capas
-│       │   ├── ArtworkProvider.kt     # capa para notificação/tela de bloqueio
-│       │   ├── LyricsLoader.kt        # letras .lrc/.txt
-│       │   ├── UserData.kt            # preferências do usuário
-│       │   └── Models.kt, Formatters.kt, Theme.kt
+│       │   ├── AudioEffects.kt, SleepTimer.kt, PlayerState.kt
+│       │   ├── LibraryRepository.kt, LibraryData.kt, UserData.kt
+│       │   ├── ArtworkLoader.kt, ArtworkProvider.kt
+│       │   └── Actions.kt, Models.kt, Formatters.kt
 │       ├── res/
 │       └── AndroidManifest.xml
 ├── assets/
