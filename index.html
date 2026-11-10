@@ -1,11 +1,10 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#10120F">
-  <meta name="description" content="WMusic — Um player musical para Android, com design minimalista e foco na sua biblioteca.">
+  <meta name="theme-color" content="#0B0D0A">
+  <meta name="description" content="WMusic — Player musical para Android. Sua biblioteca, do seu jeito.">
   <title>WMusic — Sua música, sua experiência</title>
 
   <link rel="icon" type="image/png" href="assets/icon_music_app.png">
@@ -14,578 +13,557 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
 
   <style>
     :root {
       color-scheme: dark;
-      --bg: #10120F;
-      --surface: #171A15;
-      --surface2: #1D211A;
+      --bg: #0B0D0A;
+      --surface: #121410;
+      --surface2: #181B16;
+      --surface3: #1F231C;
       --text: #F4F5F0;
       --muted: #A3AA9A;
-      --line: #2B3026;
+      --line: #242920;
       --accent: #B7F36B;
-      --accent-text: #10120F;
-      --header: rgba(16,18,15,.85);
+      --accent-glow: rgba(183,243,107,.22);
+      --accent-text: #0B0D0A;
+      --header: rgba(11,13,10,.72);
       --soft: rgba(183,243,107,.08);
+      --shadow: 0 30px 80px rgba(0,0,0,.55);
+      --grid-line: rgba(255,255,255,.025);
     }
-
     [data-theme="light"] {
       color-scheme: light;
       --bg: #F7F8F4;
       --surface: #FFFFFF;
-      --surface2: #EFF1E9;
+      --surface2: #F1F3EC;
+      --surface3: #E8EBE1;
       --text: #171A14;
-      --muted: #73796D;
+      --muted: #6B7264;
       --line: #E1E5DA;
       --accent: #679D31;
+      --accent-glow: rgba(103,157,49,.18);
       --accent-text: #FFFFFF;
-      --header: rgba(247,248,244,.88);
+      --header: rgba(247,248,244,.82);
       --soft: rgba(103,157,49,.09);
+      --shadow: 0 30px 80px rgba(0,0,0,.08);
+      --grid-line: rgba(0,0,0,.035);
     }
 
     * { box-sizing: border-box; }
-
-    html {
-      scroll-behavior: smooth;
-      scroll-padding-top: 90px;
-    }
-
+    html { scroll-behavior: smooth; scroll-padding-top: 90px; }
     body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
+      margin: 0; background: var(--bg); color: var(--text);
       font-family: 'DM Sans', sans-serif;
-      transition: background .25s, color .25s;
+      transition: background .3s, color .3s;
+      overflow-x: hidden;
     }
+    a { text-decoration: none; color: inherit; }
+    button { font-family: inherit; }
 
-    a { text-decoration: none; }
-
-    .container {
-      width: min(1160px, calc(100% - 40px));
-      margin-inline: auto;
-    }
-
+    .container { width: min(1180px, calc(100% - 40px)); margin-inline: auto; }
     .surface { background: var(--surface); }
-    .surface2 { background: var(--surface2); }
     .muted { color: var(--muted); }
     .line { border-color: var(--line); }
-
     .accent { color: var(--accent); }
 
     .brand {
       font-family: 'Manrope', sans-serif;
-      font-weight: 800;
-      letter-spacing: -1.3px;
+      font-weight: 800; letter-spacing: -1.3px;
     }
 
+    /* ===== NAV ===== */
     .navbar {
-      position: sticky;
-      top: 0;
-      z-index: 50;
+      position: sticky; top: 0; z-index: 50;
       background: var(--header);
-      backdrop-filter: blur(18px);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
       border-bottom: 1px solid var(--line);
+      transition: border-color .3s, background .3s;
     }
-
     .nav-inner {
-      min-height: 76px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 20px;
+      min-height: 72px;
+      display: flex; align-items: center; justify-content: space-between; gap: 20px;
     }
-
     .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 34px;
-      font-size: 13px;
-      color: var(--muted);
+      display: flex; align-items: center; gap: 34px;
+      font-size: 13.5px; font-weight: 500; color: var(--muted);
     }
-
+    .nav-links a { transition: color .2s; position: relative; }
+    .nav-links a::after {
+      content: ""; position: absolute; left: 0; bottom: -6px;
+      width: 0; height: 2px; background: var(--accent);
+      transition: width .3s cubic-bezier(.4,0,.2,1);
+      border-radius: 2px;
+    }
     .nav-links a:hover { color: var(--accent); }
+    .nav-links a:hover::after { width: 100%; }
 
+    /* ===== BUTTONS ===== */
     .button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 14px 21px;
-      border-radius: 12px;
-      font-size: 14px;
-      font-weight: 700;
-      transition: .2s ease;
+      display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+      padding: 13px 20px; border-radius: 12px;
+      font-size: 14px; font-weight: 700;
+      transition: all .25s cubic-bezier(.4,0,.2,1);
+      border: 1px solid transparent; cursor: pointer;
+      white-space: nowrap;
     }
-
+    .button svg { width: 17px; height: 17px; transition: transform .3s; }
     .button:hover { transform: translateY(-2px); }
+    .button:active { transform: translateY(0) scale(.98); }
+    .button-primary:hover svg.lucide-download { transform: translateY(2px); }
+    .button-secondary:hover svg.lucide-arrow-right { transform: translateX(3px); }
 
     .button-primary {
-      background: var(--accent);
-      color: var(--accent-text);
+      background: var(--accent); color: var(--accent-text);
+      box-shadow: 0 8px 24px -8px var(--accent-glow);
     }
-
+    .button-primary:hover {
+      box-shadow: 0 16px 40px -10px var(--accent-glow), 0 0 0 4px var(--soft);
+    }
     .button-secondary {
-      border: 1px solid var(--line);
-      color: var(--text);
+      border-color: var(--line); color: var(--text); background: transparent;
     }
-
     .button-secondary:hover {
-      border-color: var(--accent);
-      background: var(--soft);
+      border-color: var(--accent); background: var(--soft);
     }
 
+    /* ===== HERO ===== */
     .hero {
-      position: relative;
-      overflow: hidden;
-      padding: 105px 0 110px;
+      position: relative; overflow: hidden;
+      padding: 100px 0 120px;
     }
-
-    .hero:before {
-      content: "";
-      position: absolute;
-      width: 550px;
-      height: 550px;
-      border-radius: 50%;
-      background: var(--soft);
-      filter: blur(100px);
-      right: -200px;
-      top: -180px;
+    .hero::before {
+      content: ""; position: absolute; inset: 0;
+      background-image:
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(ellipse at 50% 30%, black 30%, transparent 75%);
+      -webkit-mask-image: radial-gradient(ellipse at 50% 30%, black 30%, transparent 75%);
       pointer-events: none;
+    }
+    .hero::after {
+      content: ""; position: absolute;
+      width: 620px; height: 620px; border-radius: 50%;
+      background: var(--accent-glow);
+      filter: blur(120px);
+      right: -240px; top: -240px;
+      pointer-events: none;
+      animation: floatGlow 14s ease-in-out infinite;
+    }
+    @keyframes floatGlow {
+      0%,100% { transform: translate(0,0) scale(1); }
+      50% { transform: translate(30px,-20px) scale(1.06); }
     }
 
     .hero-grid {
-      position: relative;
-      display: grid;
-      grid-template-columns: 1.1fr .9fr;
-      align-items: center;
-      gap: 75px;
+      position: relative; z-index: 1;
+      display: grid; grid-template-columns: 1.05fr .95fr;
+      align-items: center; gap: 80px;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 9px;
-      padding: 8px 12px;
-      border: 1px solid var(--line);
-      border-radius: 50px;
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      text-transform: uppercase;
+      display: inline-flex; align-items: center; gap: 9px;
+      padding: 8px 14px 8px 11px;
+      border: 1px solid var(--line); border-radius: 50px;
+      color: var(--muted); font-size: 11.5px; font-weight: 700;
+      letter-spacing: 1px; text-transform: uppercase;
+      background: var(--surface);
+      animation: fadeUp .8s cubic-bezier(.4,0,.2,1) both;
     }
-
     .eyebrow-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
+      width: 7px; height: 7px; border-radius: 50%;
       background: var(--accent);
+      box-shadow: 0 0 0 3px var(--soft);
+      animation: pulseDot 2s ease-in-out infinite;
+    }
+    @keyframes pulseDot {
+      0%,100% { box-shadow: 0 0 0 3px var(--soft); }
+      50% { box-shadow: 0 0 0 7px transparent; }
     }
 
     .hero h1 {
-      margin: 25px 0 20px;
+      margin: 24px 0 22px;
       font-family: 'Manrope', sans-serif;
-      font-size: clamp(43px, 6vw, 76px);
-      line-height: 1.06;
-      letter-spacing: -4px;
-      font-weight: 800;
+      font-size: clamp(44px, 6vw, 78px);
+      line-height: 1.04; letter-spacing: -4px; font-weight: 800;
+      animation: fadeUp .8s .08s cubic-bezier(.4,0,.2,1) both;
     }
-
     .hero-description {
-      max-width: 490px;
-      color: var(--muted);
-      font-size: 16px;
-      line-height: 1.9;
+      max-width: 480px; color: var(--muted);
+      font-size: 16px; line-height: 1.85;
+      animation: fadeUp .8s .16s cubic-bezier(.4,0,.2,1) both;
     }
-
     .hero-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-top: 32px;
+      display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px;
+      animation: fadeUp .8s .24s cubic-bezier(.4,0,.2,1) both;
     }
-
-    .hero-note {
-      margin-top: 20px;
-      font-size: 12px;
-      color: var(--muted);
+    .hero-meta {
+      display: flex; flex-wrap: wrap; gap: 22px;
+      margin-top: 30px; padding-top: 24px;
+      border-top: 1px solid var(--line);
+      animation: fadeUp .8s .32s cubic-bezier(.4,0,.2,1) both;
     }
+    .hero-meta span {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 12.5px; color: var(--muted); font-weight: 500;
+    }
+    .hero-meta svg { width: 15px; height: 15px; color: var(--accent); }
 
+    /* ===== PLAYER ===== */
     .player-wrap {
-      position: relative;
-      max-width: 370px;
-      width: 100%;
-      margin: auto;
+      position: relative; max-width: 380px; width: 100%; margin: auto;
+      animation: fadeUp 1s .2s cubic-bezier(.4,0,.2,1) both;
+    }
+    .player-wrap::before {
+      content: ""; position: absolute; inset: -40px;
+      background: radial-gradient(circle at 50% 50%, var(--accent-glow), transparent 70%);
+      filter: blur(30px); z-index: 0; pointer-events: none;
+      animation: pulseGlow 5s ease-in-out infinite;
+    }
+    @keyframes pulseGlow {
+      0%,100% { opacity: .5; transform: scale(1); }
+      50% { opacity: .9; transform: scale(1.05); }
     }
 
     .player {
-      position: relative;
-      padding: 24px;
-      border: 1px solid var(--line);
-      border-radius: 28px;
+      position: relative; z-index: 1;
+      padding: 26px;
+      border: 1px solid var(--line); border-radius: 30px;
       background: var(--surface);
-      box-shadow: 0 35px 90px rgba(0,0,0,.17);
+      box-shadow: var(--shadow);
+      transition: transform .4s cubic-bezier(.4,0,.2,1), box-shadow .4s;
+    }
+    .player:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 40px 100px rgba(0,0,0,.6), 0 0 0 1px var(--accent-glow);
     }
 
     .player-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 25px;
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 22px;
     }
+    .player-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 11px; border-radius: 50px;
+      background: var(--soft); color: var(--accent);
+      font-size: 10.5px; font-weight: 800; letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .player-badge svg { width: 11px; height: 11px; }
 
     .player-cover {
-      aspect-ratio: 1;
-      overflow: hidden;
-      border-radius: 19px;
-      background: var(--surface2);
+      aspect-ratio: 1; overflow: hidden;
+      border-radius: 20px; background: var(--surface2);
       border: 1px solid var(--line);
+      position: relative;
     }
-
     .player-cover img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
+      width: 100%; height: 100%; object-fit: cover;
+      transition: transform .6s cubic-bezier(.4,0,.2,1);
     }
+    .player:hover .player-cover img { transform: scale(1.03); }
 
     .player-info {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-top: 23px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-top: 22px;
     }
-
-    .player-info h3 {
-      font-size: 17px;
-      font-weight: 800;
-    }
-
-    .player-info p {
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 4px;
-    }
+    .player-info h3 { font-size: 17px; font-weight: 800; margin: 0; }
+    .player-info p { font-size: 12px; color: var(--muted); margin: 4px 0 0; }
 
     .icon-button {
-      display: grid;
-      place-items: center;
-      width: 43px;
-      height: 43px;
-      border-radius: 50%;
-      border: 1px solid var(--line);
-      background: transparent;
-      color: var(--accent);
-      cursor: pointer;
+      display: grid; place-items: center;
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 1px solid var(--line); background: transparent;
+      color: var(--accent); cursor: pointer;
+      transition: all .25s cubic-bezier(.4,0,.2,1);
     }
+    .icon-button svg { width: 19px; height: 19px; transition: transform .3s; }
+    .icon-button:hover { background: var(--soft); border-color: var(--accent); }
+    .icon-button:hover svg { transform: scale(1.12); }
+    .icon-button[aria-pressed="true"] {
+      background: var(--soft);
+      border-color: #E58B9B;
+      color: #E58B9B;
+    }
+    .icon-button[aria-pressed="true"] svg { fill: currentColor; }
 
     .progress {
-      height: 4px;
-      border-radius: 10px;
-      background: var(--surface2);
-      margin-top: 23px;
-      overflow: hidden;
+      height: 4px; border-radius: 10px;
+      background: var(--surface2); margin-top: 22px;
+      overflow: hidden; cursor: pointer;
     }
-
     .progress div {
-      width: 42%;
-      height: 100%;
+      width: 42%; height: 100%;
+      background: var(--accent); border-radius: 10px;
+      position: relative;
+    }
+    .progress div::after {
+      content: ""; position: absolute; right: -3px; top: 50%;
+      transform: translateY(-50%);
+      width: 10px; height: 10px; border-radius: 50%;
       background: var(--accent);
-      border-radius: 10px;
+      box-shadow: 0 0 0 3px var(--surface);
+      opacity: 0; transition: opacity .2s;
+    }
+    .player:hover .progress div::after { opacity: 1; }
+
+    .player-time {
+      display: flex; justify-content: space-between;
+      margin-top: 8px; font-size: 11px; color: var(--muted);
     }
 
     .player-controls {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 27px;
-      margin-top: 22px;
+      display: flex; align-items: center; justify-content: center;
+      gap: 24px; margin-top: 20px;
     }
+    .ctrl-btn {
+      background: transparent; border: 0; cursor: pointer;
+      color: var(--muted); padding: 8px; border-radius: 50%;
+      transition: all .2s; display: grid; place-items: center;
+    }
+    .ctrl-btn:hover { color: var(--text); background: var(--soft); }
+    .ctrl-btn svg { width: 20px; height: 20px; }
 
     .play-button {
-      display: grid;
-      place-items: center;
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      border: 0;
-      background: var(--accent);
-      color: var(--accent-text);
-      cursor: pointer;
+      display: grid; place-items: center;
+      width: 58px; height: 58px; border-radius: 50%;
+      border: 0; background: var(--accent);
+      color: var(--accent-text); cursor: pointer;
+      transition: all .25s cubic-bezier(.4,0,.2,1);
+      box-shadow: 0 8px 24px -6px var(--accent-glow);
     }
+    .play-button:hover {
+      transform: scale(1.06);
+      box-shadow: 0 12px 32px -6px var(--accent-glow);
+    }
+    .play-button:active { transform: scale(.96); }
+    .play-button svg { width: 24px; height: 24px; }
+    .play-button svg.fill-icon { fill: currentColor; }
 
     .visualizer {
-      height: 35px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      margin-top: 20px;
+      height: 32px; display: flex; align-items: center; justify-content: center;
+      gap: 4px; margin-top: 18px;
     }
-
     .visualizer span {
-      display: block;
-      width: 4px;
-      height: 15px;
-      border-radius: 10px;
-      background: var(--accent);
-      animation: equalizer .7s ease-in-out infinite alternate;
+      display: block; width: 3px; height: 14px;
+      border-radius: 10px; background: var(--accent);
+      opacity: .35;
+      animation: equalizer 1s ease-in-out infinite alternate;
+      animation-play-state: paused;
     }
-
-    .visualizer span:nth-child(2n) { animation-delay: .2s; }
-    .visualizer span:nth-child(3n) { animation-delay: .4s; }
+    .visualizer span:nth-child(2n) { animation-delay: .15s; }
+    .visualizer span:nth-child(3n) { animation-delay: .3s; }
+    .visualizer span:nth-child(4n) { animation-delay: .45s; }
+    .visualizer.playing span { opacity: 1; animation-play-state: running; }
 
     @keyframes equalizer {
-      to { transform: scaleY(.35); opacity: .5; }
+      from { transform: scaleY(1); }
+      to { transform: scaleY(.3); }
     }
 
-    .section {
-      padding: 95px 0;
-    }
+    /* ===== SECTIONS ===== */
+    .section { padding: 95px 0; position: relative; }
+    .section-header { max-width: 620px; margin-bottom: 48px; }
 
-    .section-header {
-      max-width: 600px;
-      margin-bottom: 45px;
+    .reveal {
+      opacity: 0; transform: translateY(28px);
+      transition: opacity .7s cubic-bezier(.4,0,.2,1), transform .7s cubic-bezier(.4,0,.2,1);
     }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
 
     .section-label {
-      color: var(--accent);
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 2px;
-      text-transform: uppercase;
+      color: var(--accent); font-size: 11px; font-weight: 800;
+      letter-spacing: 2px; text-transform: uppercase;
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .section-label::before {
+      content: ""; width: 20px; height: 1.5px;
+      background: var(--accent); border-radius: 2px;
     }
 
     .section-title {
-      margin-top: 15px;
+      margin-top: 16px;
       font-family: 'Manrope', sans-serif;
-      font-size: clamp(30px, 4vw, 47px);
-      font-weight: 800;
-      letter-spacing: -2px;
-      line-height: 1.2;
+      font-size: clamp(30px, 4vw, 48px);
+      font-weight: 800; letter-spacing: -2px; line-height: 1.15;
     }
-
     .section-description {
-      margin-top: 14px;
-      color: var(--muted);
-      line-height: 1.8;
-      font-size: 15px;
+      margin-top: 16px; color: var(--muted);
+      line-height: 1.8; font-size: 15px;
     }
 
+    /* ===== FEATURES ===== */
     .features {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 17px;
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
     }
-
     .feature {
-      padding: 27px 23px;
-      border: 1px solid var(--line);
-      border-radius: 18px;
+      position: relative; overflow: hidden;
+      padding: 28px 24px;
+      border: 1px solid var(--line); border-radius: 20px;
       background: var(--surface);
-      transition: .25s;
+      transition: all .35s cubic-bezier(.4,0,.2,1);
     }
-
+    .feature::before {
+      content: ""; position: absolute; inset: 0;
+      background: radial-gradient(circle at 0% 0%, var(--soft), transparent 60%);
+      opacity: 0; transition: opacity .35s;
+      pointer-events: none;
+    }
     .feature:hover {
-      transform: translateY(-5px);
+      transform: translateY(-6px);
       border-color: var(--accent);
+      box-shadow: 0 20px 40px -20px var(--accent-glow);
     }
-
+    .feature:hover::before { opacity: 1; }
     .feature-icon {
-      width: 47px;
-      height: 47px;
-      display: grid;
-      place-items: center;
-      border-radius: 14px;
-      color: var(--accent);
-      background: var(--soft);
-      font-size: 21px;
+      width: 48px; height: 48px; display: grid; place-items: center;
+      border-radius: 14px; color: var(--accent);
+      background: var(--soft); position: relative; z-index: 1;
+      transition: transform .35s cubic-bezier(.4,0,.2,1);
     }
+    .feature-icon svg { width: 22px; height: 22px; }
+    .feature:hover .feature-icon { transform: scale(1.08) rotate(-4deg); }
+    .feature h3 { margin: 22px 0 0; font-size: 16px; font-weight: 800; position: relative; z-index: 1; }
+    .feature p { margin: 10px 0 0; font-size: 13px; line-height: 1.75; color: var(--muted); position: relative; z-index: 1; }
 
-    .feature h3 {
-      margin-top: 23px;
-      font-size: 16px;
-      font-weight: 800;
-    }
-
-    .feature p {
-      margin-top: 10px;
-      font-size: 13px;
-      line-height: 1.8;
-      color: var(--muted);
-    }
-
+    /* ===== INSTALL ===== */
     .install-section {
       border-top: 1px solid var(--line);
       border-bottom: 1px solid var(--line);
       background: var(--surface);
     }
-
     .install-grid {
-      display: grid;
-      grid-template-columns: .8fr 1.2fr;
-      gap: 80px;
-      align-items: start;
+      display: grid; grid-template-columns: .85fr 1.15fr;
+      gap: 70px; align-items: start;
     }
-
-    .steps {
-      display: grid;
-      gap: 14px;
-    }
-
+    .steps { display: grid; gap: 13px; }
     .step {
-      display: flex;
-      gap: 18px;
-      padding: 22px;
-      border: 1px solid var(--line);
-      border-radius: 16px;
+      display: flex; gap: 18px; padding: 22px;
+      border: 1px solid var(--line); border-radius: 16px;
       background: var(--bg);
+      transition: all .3s cubic-bezier(.4,0,.2,1);
     }
-
+    .step:hover {
+      border-color: var(--accent);
+      transform: translateX(4px);
+      box-shadow: 0 12px 28px -16px var(--accent-glow);
+    }
     .step-number {
-      flex-shrink: 0;
-      width: 39px;
-      height: 39px;
-      display: grid;
-      place-items: center;
-      border-radius: 11px;
-      background: var(--soft);
-      color: var(--accent);
-      font-weight: 800;
-      font-size: 13px;
+      flex-shrink: 0; width: 40px; height: 40px;
+      display: grid; place-items: center; border-radius: 11px;
+      background: var(--soft); color: var(--accent);
+      font-weight: 800; font-size: 13px;
+      transition: all .3s;
     }
-
-    .step h3 {
-      font-size: 14px;
-      font-weight: 800;
+    .step:hover .step-number {
+      background: var(--accent); color: var(--accent-text);
     }
+    .step h3 { font-size: 14.5px; font-weight: 800; margin: 0; }
+    .step p { color: var(--muted); font-size: 13px; line-height: 1.7; margin: 6px 0 0; }
 
-    .step p {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.7;
-      margin-top: 6px;
-    }
-
+    /* ===== DOWNLOAD ===== */
     .download-banner {
-      position: relative;
-      overflow: hidden;
-      padding: 52px;
-      border: 1px solid var(--line);
-      border-radius: 23px;
+      position: relative; overflow: hidden;
+      padding: 56px;
+      border: 1px solid var(--line); border-radius: 26px;
       background: var(--surface);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 25px;
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 30px;
+      transition: border-color .3s, box-shadow .3s;
     }
-
+    .download-banner::before {
+      content: ""; position: absolute;
+      width: 400px; height: 400px; border-radius: 50%;
+      background: var(--accent-glow); filter: blur(80px);
+      right: -120px; top: 50%; transform: translateY(-50%);
+      pointer-events: none;
+    }
+    .download-banner:hover { border-color: var(--accent); }
+    .download-banner > * { position: relative; z-index: 1; }
     .download-banner h2 {
       font-family: 'Manrope', sans-serif;
-      font-size: clamp(25px, 4vw, 38px);
-      font-weight: 800;
-      letter-spacing: -1.5px;
+      font-size: clamp(26px, 4vw, 40px);
+      font-weight: 800; letter-spacing: -1.5px; line-height: 1.15;
+      margin: 14px 0 0;
+    }
+    .download-banner p { color: var(--muted); margin-top: 14px; font-size: 14.5px; }
+
+    .download-btn {
+      padding: 16px 26px; font-size: 15px;
     }
 
-    .download-banner p {
-      color: var(--muted);
-      margin-top: 12px;
-      font-size: 14px;
-    }
-
-    footer {
-      border-top: 1px solid var(--line);
-      padding: 42px 0 25px;
-    }
-
+    /* ===== FOOTER ===== */
+    footer { border-top: 1px solid var(--line); padding: 44px 0 26px; }
     .footer-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 30px;
-      flex-wrap: wrap;
-      padding-bottom: 35px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 30px; flex-wrap: wrap; padding-bottom: 35px;
     }
-
     .footer-links {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 25px;
-      font-size: 13px;
-      color: var(--muted);
+      display: flex; flex-wrap: wrap; gap: 26px;
+      font-size: 13px; color: var(--muted);
     }
-
+    .footer-links a { transition: color .2s; }
     .footer-links a:hover { color: var(--accent); }
 
     .footer-bottom {
-      border-top: 1px solid var(--line);
-      padding-top: 25px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 20px;
+      border-top: 1px solid var(--line); padding-top: 26px;
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 20px;
     }
-
     .theme-control {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      color: var(--muted);
-      font-size: 12px;
+      display: flex; align-items: center; gap: 10px;
+      color: var(--muted); font-size: 12.5px;
     }
-
+    .theme-control svg { width: 15px; height: 15px; }
     .theme-select {
-      padding: 10px 14px;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      outline: none;
-      background: var(--surface);
-      color: var(--text);
-      font: inherit;
-      cursor: pointer;
+      padding: 9px 13px; border: 1px solid var(--line);
+      border-radius: 10px; outline: none;
+      background: var(--surface); color: var(--text);
+      font: inherit; font-size: 12.5px; cursor: pointer;
+      transition: border-color .2s;
     }
+    .theme-select:hover, .theme-select:focus { border-color: var(--accent); }
 
     .footer-note {
-      display: none;
-      margin-top: 25px;
-      padding: 18px;
-      border-radius: 12px;
-      border: 1px solid var(--line);
-      background: var(--surface);
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.8;
+      display: none; margin-top: 25px; padding: 18px 20px;
+      border-radius: 13px; border: 1px solid var(--line);
+      background: var(--surface); color: var(--muted);
+      font-size: 13px; line-height: 1.8;
     }
+    .footer-note.visible { display: block; animation: fadeUp .4s ease; }
 
-    .footer-note.visible { display: block; }
-
+    /* ===== RESPONSIVE ===== */
     @media (max-width: 900px) {
-      .hero-grid { gap: 45px; }
+      .hero-grid { gap: 50px; }
       .features { grid-template-columns: repeat(2, 1fr); }
       .install-grid { gap: 40px; }
     }
-
     @media (max-width: 650px) {
-      .container { width: min(100% - 32px, 1160px); }
-      .nav-inner { min-height: 67px; }
+      .container { width: calc(100% - 32px); }
+      .nav-inner { min-height: 66px; }
       .nav-links { display: none; }
-      .hero { padding: 75px 0 85px; }
+      .hero { padding: 70px 0 85px; }
       .hero-grid { grid-template-columns: 1fr; gap: 60px; }
       .hero h1 { letter-spacing: -2.5px; }
-      .hero-description { font-size: 14px; }
+      .hero-description { font-size: 14.5px; }
       .player-wrap { max-width: 340px; }
       .section { padding: 70px 0; }
       .features { grid-template-columns: 1fr; }
       .install-grid { grid-template-columns: 1fr; gap: 35px; }
       .download-banner {
-        padding: 30px 23px;
-        align-items: flex-start;
-        flex-direction: column;
+        padding: 32px 24px; flex-direction: column; align-items: flex-start;
       }
-      .footer-top { align-items: flex-start; flex-direction: column; }
-      .footer-bottom { align-items: flex-start; flex-direction: column; }
+      .download-btn { width: 100%; }
+      .footer-top, .footer-bottom { flex-direction: column; align-items: flex-start; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -594,13 +572,14 @@
         animation: none !important;
         transition: none !important;
       }
+      .reveal { opacity: 1; transform: none; }
     }
   </style>
 </head>
 
 <body>
 
-  <!-- NAVEGAÇÃO -->
+  <!-- NAV -->
   <header class="navbar">
     <nav class="container nav-inner">
       <a href="#inicio" class="flex items-center gap-3" aria-label="WMusic início">
@@ -611,11 +590,12 @@
       <div class="nav-links">
         <a href="#recursos">Recursos</a>
         <a href="#instalar">Instalação</a>
-        <a href="https://github.com/mateusaug1/AugMusic" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+        <a href="https://github.com/mateusaug1/AugMusic" target="_blank" rel="noopener noreferrer">GitHub</a>
       </div>
 
       <a href="#download" class="button button-primary">
-        Baixar aplicativo
+        <i data-lucide="download"></i>
+        Baixar app
       </a>
     </nav>
   </header>
@@ -638,27 +618,28 @@
           </h1>
 
           <p class="hero-description">
-            Descubra o WMusic, um player musical para Android que combina
-            simplicidade, personalidade e uma experiência pensada para
-            valorizar sua biblioteca.
+            WMusic é um player musical para Android que combina simplicidade,
+            personalidade e uma experiência pensada para valorizar sua biblioteca.
           </p>
 
           <div class="hero-actions">
             <a href="#download" class="button button-primary">
-              ↓ Baixar WMusic
+              <i data-lucide="download"></i>
+              Baixar WMusic
             </a>
-
             <a href="#recursos" class="button button-secondary">
-              Explorar recursos →
+              Explorar recursos
+              <i data-lucide="arrow-right"></i>
             </a>
           </div>
 
-          <p class="hero-note">
-            Aplicativo Android · Projeto independente · Código aberto
-          </p>
+          <div class="hero-meta">
+            <span><i data-lucide="smartphone"></i> Android</span>
+            <span><i data-lucide="shield-check"></i> Código aberto</span>
+            <span><i data-lucide="sparkles"></i> Projeto independente</span>
+          </div>
         </div>
 
-        <!-- DEMONSTRAÇÃO VISUAL -->
         <div class="player-wrap">
           <div class="player">
 
@@ -667,8 +648,9 @@
                 <img src="assets/icon_music_app.png" class="w-8 h-8 rounded-lg" alt="">
                 <span class="brand">W<span class="accent">music</span></span>
               </div>
-
-              <span class="muted text-xs">PLAYER</span>
+              <span class="player-badge">
+                <i data-lucide="music-2"></i> Player
+              </span>
             </div>
 
             <div class="player-cover">
@@ -681,40 +663,35 @@
                 <p>Sua biblioteca, do seu jeito</p>
               </div>
 
-              <button id="like-button" class="icon-button"
-                type="button" aria-label="Adicionar aos favoritos"
-                aria-pressed="false">
-                <svg width="20" height="20" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z"/>
-                </svg>
+              <button id="like-button" class="icon-button" type="button"
+                aria-label="Adicionar aos favoritos" aria-pressed="false">
+                <i data-lucide="heart"></i>
               </button>
             </div>
 
-            <div class="progress">
-              <div></div>
-            </div>
+            <div class="progress"><div></div></div>
 
-            <div class="flex justify-between muted text-xs mt-2">
+            <div class="player-time">
               <span>1:24</span>
               <span>3:38</span>
             </div>
 
             <div class="player-controls">
-              <span class="muted">◀</span>
-
-              <button id="play-demo" class="play-button"
-                type="button" aria-label="Reproduzir demonstração visual">
-                <svg id="play-icon" width="23" height="23"
-                  viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M8 5v14l11-7z"/>
-                </svg>
+              <button class="ctrl-btn" aria-label="Faixa anterior">
+                <i data-lucide="skip-back"></i>
               </button>
 
-              <span class="muted">▶</span>
+              <button id="play-demo" class="play-button" type="button"
+                aria-label="Reproduzir demonstração">
+                <i data-lucide="play" class="fill-icon" id="play-icon"></i>
+              </button>
+
+              <button class="ctrl-btn" aria-label="Próxima faixa">
+                <i data-lucide="skip-forward"></i>
+              </button>
             </div>
 
-            <div class="visualizer" aria-hidden="true">
+            <div class="visualizer" id="visualizer" aria-hidden="true">
               <span></span><span></span><span></span><span></span>
               <span></span><span></span><span></span><span></span>
               <span></span><span></span><span></span><span></span>
@@ -731,15 +708,11 @@
     <!-- RECURSOS -->
     <section class="section" id="recursos">
       <div class="container">
-
-        <div class="section-header">
+        <div class="section-header reveal">
           <span class="section-label">O que você encontra</span>
-
           <h2 class="section-title">
-            Tudo no seu ritmo.
-            <span class="muted">Sem complicação.</span>
+            Tudo no seu ritmo. <span class="muted">Sem complicação.</span>
           </h2>
-
           <p class="section-description">
             Uma experiência musical com foco na organização, praticidade
             e liberdade para aproveitar sua própria coleção.
@@ -747,31 +720,29 @@
         </div>
 
         <div class="features">
-
-          <article class="feature">
-            <div class="feature-icon">♫</div>
+          <article class="feature reveal">
+            <div class="feature-icon"><i data-lucide="radio"></i></div>
             <h3>Reprodução em segundo plano</h3>
             <p>Continue ouvindo suas músicas enquanto utiliza outros aplicativos.</p>
           </article>
 
-          <article class="feature">
-            <div class="feature-icon">◈</div>
+          <article class="feature reveal">
+            <div class="feature-icon"><i data-lucide="library"></i></div>
             <h3>Biblioteca musical</h3>
             <p>Uma experiência dedicada à sua coleção de músicas locais.</p>
           </article>
 
-          <article class="feature">
-            <div class="feature-icon">◉</div>
+          <article class="feature reveal">
+            <div class="feature-icon"><i data-lucide="layout-grid"></i></div>
             <h3>Design minimalista</h3>
             <p>Interface moderna, navegação objetiva e identidade visual própria.</p>
           </article>
 
-          <article class="feature">
-            <div class="feature-icon">⌘</div>
+          <article class="feature reveal">
+            <div class="feature-icon"><i data-lucide="github"></i></div>
             <h3>Código aberto</h3>
             <p>Explore o desenvolvimento do projeto e acompanhe sua evolução no GitHub.</p>
           </article>
-
         </div>
       </div>
     </section>
@@ -779,14 +750,9 @@
     <!-- INSTALAÇÃO -->
     <section class="section install-section" id="instalar">
       <div class="container install-grid">
-
-        <div>
+        <div class="reveal">
           <span class="section-label">Instalação</span>
-
-          <h2 class="section-title">
-            Comece a ouvir.
-          </h2>
-
+          <h2 class="section-title">Comece a ouvir.</h2>
           <p class="section-description">
             Instale o WMusic no seu dispositivo Android seguindo
             algumas etapas simples.
@@ -795,13 +761,14 @@
           <a href="https://github.com/mateusaug1/AugMusic"
             target="_blank" rel="noopener noreferrer"
             class="inline-flex items-center gap-2 accent font-bold text-sm mt-7">
-            Conhecer o projeto no GitHub ↗
+            <i data-lucide="github" style="width:16px;height:16px;"></i>
+            Conhecer o projeto no GitHub
+            <i data-lucide="arrow-up-right" style="width:14px;height:14px;"></i>
           </a>
         </div>
 
         <div class="steps">
-
-          <article class="step">
+          <article class="step reveal">
             <span class="step-number">01</span>
             <div>
               <h3>Baixe o aplicativo</h3>
@@ -809,22 +776,21 @@
             </div>
           </article>
 
-          <article class="step">
+          <article class="step reveal">
             <span class="step-number">02</span>
             <div>
               <h3>Autorize a instalação</h3>
-              <p>Se solicitado, permita a instalação pelo navegador ou gerenciador de arquivos utilizado.</p>
+              <p>Se solicitado, permita a instalação pelo navegador ou gerenciador de arquivos.</p>
             </div>
           </article>
 
-          <article class="step">
+          <article class="step reveal">
             <span class="step-number">03</span>
             <div>
               <h3>Instale e aproveite</h3>
               <p>Abra o arquivo APK, confira sua origem e siga as instruções do Android.</p>
             </div>
           </article>
-
         </div>
       </div>
     </section>
@@ -832,42 +798,31 @@
     <!-- DOWNLOAD -->
     <section class="section" id="download">
       <div class="container">
-
-        <div class="download-banner">
+        <div class="download-banner reveal">
           <div>
             <span class="section-label">WMusic para Android</span>
-
-            <h2 class="mt-4">
-              Sua biblioteca.<br>
-              Seu próprio ritmo.
-            </h2>
-
-            <p>
-              Conheça o aplicativo e confira a versão mais recente.
-            </p>
+            <h2>Sua biblioteca.<br>Seu próprio ritmo.</h2>
+            <p>Conheça o aplicativo e confira a versão mais recente.</p>
           </div>
 
           <a href="https://github.com/mateusaug1/AugMusic/releases/latest/download/app-debug.apk"
-            class="button button-primary"
+            class="button button-primary download-btn"
             target="_blank" rel="noopener noreferrer">
-            ↓ Baixar APK V13
+            <i data-lucide="download"></i>
+            Baixar APK · V13
           </a>
         </div>
-
       </div>
     </section>
 
   </main>
 
-  <!-- RODAPÉ -->
+  <!-- FOOTER -->
   <footer>
     <div class="container">
-
       <div class="footer-top">
-
         <a href="#inicio" class="flex items-center gap-3">
-          <img src="assets/icon_music_app.png" alt=""
-            class="w-10 h-10 rounded-xl">
+          <img src="assets/icon_music_app.png" alt="" class="w-10 h-10 rounded-xl">
           <span class="brand text-xl">W<span class="accent">music</span></span>
         </a>
 
@@ -875,167 +830,124 @@
           <a href="#inicio">Início</a>
           <a href="#recursos">Recursos</a>
           <a href="#instalar">Instalação</a>
-          <a href="https://github.com/mateusaug1/AugMusic"
-            target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+          <a href="https://github.com/mateusaug1/AugMusic" target="_blank" rel="noopener noreferrer">GitHub</a>
           <a href="#termos" id="terms-link">Termos de uso</a>
           <a href="#creditos" id="credits-link">Créditos</a>
         </div>
-
       </div>
 
       <div id="footer-note" class="footer-note" aria-live="polite"></div>
 
       <div class="footer-bottom">
-
         <div>
-          <p class="text-xs muted">
-            © <span id="year"></span> WMusic. Projeto independente.
-          </p>
-          <p class="text-xs muted mt-2">
-            Desenvolvido com dedicação.
-          </p>
+          <p class="text-xs muted">© <span id="year"></span> WMusic. Projeto independente.</p>
+          <p class="text-xs muted mt-2">Desenvolvido com dedicação.</p>
         </div>
 
-        <!-- SELETOR DE TEMA -->
         <div class="theme-control">
-          <span>◐ Aparência</span>
-
-          <select id="theme-select" class="theme-select"
-            aria-label="Selecionar aparência do site">
+          <i data-lucide="sun-moon"></i>
+          <span>Aparência</span>
+          <select id="theme-select" class="theme-select" aria-label="Selecionar aparência">
             <option value="system">Automático</option>
             <option value="dark">Escuro</option>
             <option value="light">Claro</option>
           </select>
         </div>
-
       </div>
     </div>
   </footer>
 
   <script>
-    // ANO AUTOMÁTICO
-    document.getElementById('year').textContent =
-      new Date().getFullYear();
+    // ===== LUCIDE =====
+    lucide.createIcons();
 
-    // TEMA
+    // ===== ANO =====
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // ===== TEMA =====
     const themeSelect = document.getElementById('theme-select');
     const root = document.documentElement;
     const themeMeta = document.querySelector('meta[name="theme-color"]');
 
     function applyTheme(theme) {
-      const systemDark = window.matchMedia(
-        '(prefers-color-scheme: dark)'
-      ).matches;
-
-      const actualTheme = theme === 'system'
-        ? (systemDark ? 'dark' : 'light')
-        : theme;
-
-      root.setAttribute('data-theme', actualTheme);
-
-      themeMeta.setAttribute(
-        'content',
-        actualTheme === 'dark' ? '#10120F' : '#F7F8F4'
-      );
+      const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const actual = theme === 'system' ? (systemDark ? 'dark' : 'light') : theme;
+      root.setAttribute('data-theme', actual);
+      themeMeta.setAttribute('content', actual === 'dark' ? '#0B0D0A' : '#F7F8F4');
     }
 
     const savedTheme = localStorage.getItem('wmusic-theme') || 'dark';
-
     themeSelect.value = savedTheme;
     applyTheme(savedTheme);
 
     themeSelect.addEventListener('change', () => {
-      const selected = themeSelect.value;
-
-      localStorage.setItem('wmusic-theme', selected);
-      applyTheme(selected);
+      localStorage.setItem('wmusic-theme', themeSelect.value);
+      applyTheme(themeSelect.value);
     });
 
-    // ATUALIZA TEMA AUTOMÁTICO QUANDO O SISTEMA MUDA
-    window.matchMedia('(prefers-color-scheme: dark)')
-      .addEventListener('change', () => {
-        if (themeSelect.value === 'system') {
-          applyTheme('system');
-        }
-      });
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      if (themeSelect.value === 'system') applyTheme('system');
+    });
 
-    // DEMONSTRAÇÃO VISUAL DO PLAYER
+    // ===== PLAYER DEMO =====
     const playButton = document.getElementById('play-demo');
     const playIcon = document.getElementById('play-icon');
-
+    const visualizer = document.getElementById('visualizer');
     let playing = false;
 
     playButton.addEventListener('click', () => {
       playing = !playing;
 
-      playIcon.innerHTML = playing
-        ? '<path d="M7 5h4v14H7zM15 5h4v14h-4z"/>'
-        : '<path d="M8 5v14l11-7z"/>';
+      playIcon.setAttribute('data-lucide', playing ? 'pause' : 'play');
+      playIcon.classList.toggle('fill-icon', !playing);
+      lucide.createIcons();
 
-      document.querySelectorAll('.visualizer span')
-        .forEach(bar => {
-          bar.style.animationPlayState =
-            playing ? 'running' : 'paused';
-        });
+      visualizer.classList.toggle('playing', playing);
 
-      playButton.setAttribute(
-        'aria-label',
-        playing
-          ? 'Pausar demonstração visual'
-          : 'Reproduzir demonstração visual'
-      );
+      playButton.setAttribute('aria-label',
+        playing ? 'Pausar demonstração' : 'Reproduzir demonstração');
     });
 
-    // FAVORITOS VISUAL
+    // ===== LIKE =====
     const likeButton = document.getElementById('like-button');
-
     likeButton.addEventListener('click', () => {
       const liked = likeButton.getAttribute('aria-pressed') !== 'true';
-
       likeButton.setAttribute('aria-pressed', String(liked));
-      likeButton.style.background = liked
-        ? 'var(--soft)'
-        : 'transparent';
-
-      likeButton.style.color = liked
-        ? '#E58B9B'
-        : 'var(--accent)';
     });
 
-    // TERMOS E CRÉDITOS
+    // ===== TERMOS / CRÉDITOS =====
     const footerNote = document.getElementById('footer-note');
 
     function showNote(id, content) {
       footerNote.textContent = content;
       footerNote.classList.add('visible');
-
       history.replaceState(null, '', '#' + id);
-
-      footerNote.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest'
-      });
+      footerNote.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
-    document.getElementById('terms-link')
-      .addEventListener('click', event => {
-        event.preventDefault();
+    document.getElementById('terms-link').addEventListener('click', e => {
+      e.preventDefault();
+      showNote('termos',
+        'Termos de uso: o WMusic é um projeto independente. Utilize o aplicativo de acordo com as leis aplicáveis. Baixe versões somente pelo repositório oficial e confira a origem dos arquivos antes de instalar.');
+    });
 
-        showNote(
-          'termos',
-          'Termos de uso: o WMusic é um projeto independente. Utilize o aplicativo de acordo com as leis aplicáveis. Baixe versões somente pelo repositório oficial e confira a origem dos arquivos antes de instalar.'
-        );
+    document.getElementById('credits-link').addEventListener('click', e => {
+      e.preventDefault();
+      showNote('creditos',
+        'Créditos: WMusic / AugMusic. Desenvolvido por Mateus Augusto de Melo. Código-fonte disponível em github.com/mateusaug1/AugMusic');
+    });
+
+    // ===== REVEAL ON SCROLL =====
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
+        }
       });
+    }, { threshold: 0.12 });
 
-    document.getElementById('credits-link')
-      .addEventListener('click', event => {
-        event.preventDefault();
-
-        showNote(
-          'creditos',
-          'Créditos: WMusic / AugMusic. Desenvolvido por Mateus Augusto de Melo. Código-fonte, desenvolvimento e versões disponíveis no GitHub: github.com/mateusaug1/AugMusic'
-        );
-      });
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
   </script>
 
 </body>
