@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -81,15 +82,16 @@ internal fun TrackRow(
         track.artist.takeIf { settings.showArtist },
         track.album.takeIf { settings.showAlbum }
     ).joinToString(" · ")
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
-            .background(if (isCurrent) c.accentSoft else Color.Transparent)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 8.dp, vertical = 7.dp),
-        verticalAlignment = Alignment.CenterVertically
+    GlassRowItem(
+        modifier = Modifier.fillMaxWidth(),
+        selected = isCurrent,
+        shape = RoundedCornerShape(22.dp),
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 7.dp),
+        onClick = onClick,
+        onLongClick = onLongClick
     ) {
         Box {
-            ArtworkImage(track, Modifier.size(52.dp), RoundedCornerShape(14.dp))
+            ArtworkImage(track, Modifier.size(52.dp), RoundedCornerShape(16.dp))
             if (isCurrent && isPlaying) {
                 Icon(
                     Icons.Default.GraphicEq, "Tocando", tint = c.onAccent,
@@ -148,6 +150,7 @@ internal fun LibraryScreen(
     val curKey = nav.collectionKey
     val curPlaylist = nav.playlist
     val inDetail = nav.inLibraryDetail
+    val bottomInset = LocalBottomInset.current
 
     val visible: List<AudioTrack> = remember(data, tab, curKey, curPlaylist, vm.favorites, vm.playlists) {
         when {
@@ -174,7 +177,8 @@ internal fun LibraryScreen(
         // ---- cabeçalho
         Row(Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             if (inDetail) {
-                IconButton(onClick = { nav.back() }) { Icon(Icons.Default.ArrowBack, "Voltar", tint = c.accentFg) }
+                GlassIconButton(onClick = { nav.back() }, icon = Icons.Default.ArrowBack, contentDescription = "Voltar", tint = c.accentFg)
+                Spacer(Modifier.width(10.dp))
             }
             Column(Modifier.weight(1f)) {
                 Text(
@@ -189,11 +193,13 @@ internal fun LibraryScreen(
                 Spacer(Modifier.width(6.dp))
             }
             if (tab == "Músicas" && !inDetail) {
-                IconButton(onClick = onShowSort) { Icon(Icons.Default.Sort, "Ordenar por ${vm.sortBy}", tint = c.accentFg) }
+                GlassIconButton(onClick = onShowSort, icon = Icons.Default.Sort, contentDescription = "Ordenar por ${vm.sortBy}", tint = c.accentFg)
+                Spacer(Modifier.width(8.dp))
             }
-            IconButton(onClick = { if (hasPermission) vm.refresh() else onRequestPermission() }) {
-                Icon(Icons.Default.Refresh, "Atualizar biblioteca", tint = c.muted)
-            }
+            GlassIconButton(
+                onClick = { if (hasPermission) vm.refresh() else onRequestPermission() },
+                icon = Icons.Default.Refresh, contentDescription = "Atualizar biblioteca", tint = c.muted
+            )
         }
 
         // ---- abas
@@ -213,9 +219,7 @@ internal fun LibraryScreen(
             !hasPermission -> {
                 val (t, s) = emptyLibraryHint(vm, false)
                 EmptyState(Icons.Default.MusicOff, t, s, Modifier.weight(1f)) {
-                    Button(onClick = onRequestPermission, colors = ButtonDefaults.buttonColors(containerColor = c.accent, contentColor = c.onAccent)) {
-                        Text("Permitir acesso")
-                    }
+                    GlassButton(onClick = onRequestPermission) { Text("Permitir acesso") }
                 }
             }
 
@@ -223,11 +227,11 @@ internal fun LibraryScreen(
                 val names = remember(vm.playlists) { vm.playlists.keys.sortedWith(compareBy<String, String>(AppCollator) { it }) }
                 if (names.isEmpty()) {
                     EmptyState(Icons.Default.PlaylistAdd, "Crie sua primeira playlist", "Organize suas músicas em listas personalizadas.", Modifier.weight(1f)) {
-                        Button(onClick = onNewPlaylist, colors = ButtonDefaults.buttonColors(containerColor = c.accent, contentColor = c.onAccent)) {
+                        GlassButton(onClick = onNewPlaylist) {
                             Icon(Icons.Default.Add, null); Spacer(Modifier.width(6.dp)); Text("Nova playlist")
                         }
                     }
-                } else LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 12.dp)) {
+                } else LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 12.dp + bottomInset)) {
                     item {
                         Row(Modifier.padding(vertical = 6.dp)) {
                             WChip("Nova playlist", false, onClick = onNewPlaylist, icon = Icons.Default.Add)
@@ -236,14 +240,17 @@ internal fun LibraryScreen(
                     items(names, key = { it }) { name ->
                         val ids = vm.playlists[name].orEmpty()
                         val cover = ids.firstNotNullOfOrNull { data.byId[it] }
-                        Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
-                                .combinedClickable(onClick = { nav.openPlaylist(name) }, onLongClick = { onDeletePlaylist(name) })
-                                .padding(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        GlassRowItem(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(22.dp),
+                            onClick = { nav.openPlaylist(name) },
+                            onLongClick = { onDeletePlaylist(name) }
                         ) {
-                            if (cover != null) ArtworkImage(cover, Modifier.size(58.dp), RoundedCornerShape(16.dp))
-                            else Box(Modifier.size(58.dp).clip(RoundedCornerShape(16.dp)).background(c.accentSoft), contentAlignment = Alignment.Center) {
+                            if (cover != null) ArtworkImage(cover, Modifier.size(58.dp), RoundedCornerShape(18.dp))
+                            else Box(
+                                Modifier.size(58.dp).glass(RoundedCornerShape(18.dp), tint = c.accent, tintAlpha = 0.2f, elevation = 0.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
                                 Icon(Icons.Default.QueueMusic, null, tint = c.accentFg)
                             }
                             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
@@ -265,20 +272,24 @@ internal fun LibraryScreen(
                 } else LazyVerticalGrid(
                     columns = GridCells.Adaptive(150.dp),
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(bottom = 12.dp, top = 6.dp),
+                    contentPadding = PaddingValues(bottom = 12.dp + bottomInset, top = 6.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     gridItems(groups, key = { it.key }) { g ->
+                        val press = rememberPress(pressedScale = 0.96f)
                         Column(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).clickable {
-                                if (tab == "Álbuns") nav.openAlbum(g.key, g.title) else nav.openArtist(g.key, g.title)
-                            }.padding(bottom = 4.dp)
+                            Modifier.fillMaxWidth()
+                                .graphicsLayer { scaleX = press.scale; scaleY = press.scale }
+                                .clip(RoundedCornerShape(24.dp))
+                                .clickable(interactionSource = press.source, indication = null) {
+                                    if (tab == "Álbuns") nav.openAlbum(g.key, g.title) else nav.openArtist(g.key, g.title)
+                                }.padding(bottom = 4.dp)
                         ) {
                             if (tab == "Artistas") {
                                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { ArtistAvatar(g.rep, 120.dp) }
                             } else {
-                                ArtworkImage(g.rep, Modifier.fillMaxWidth().aspectRatio(1f), RoundedCornerShape(22.dp), ArtSize.MEDIUM)
+                                ArtworkImage(g.rep, Modifier.fillMaxWidth().aspectRatio(1f), RoundedCornerShape(26.dp), ArtSize.MEDIUM, elevated = true)
                             }
                             Spacer(Modifier.height(8.dp))
                             Text(
@@ -310,24 +321,23 @@ internal fun LibraryScreen(
                 EmptyState(Icons.Default.MusicOff, t, s, Modifier.weight(1f))
             }
 
-            else -> LazyColumn(Modifier.weight(1f), state = listState, contentPadding = PaddingValues(bottom = 10.dp)) {
+            else -> LazyColumn(Modifier.weight(1f), state = listState, contentPadding = PaddingValues(bottom = 10.dp + bottomInset)) {
                 if (inDetail) {
                     item {
                         val rep = visible.first()
                         val total = visible.sumOf { it.duration }
                         Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                             if (tab == "Artistas") ArtistAvatar(rep, 104.dp)
-                            else ArtworkImage(rep, Modifier.size(104.dp), RoundedCornerShape(24.dp), ArtSize.MEDIUM)
+                            else ArtworkImage(rep, Modifier.size(104.dp), RoundedCornerShape(28.dp), ArtSize.MEDIUM, elevated = true)
                             Column(Modifier.weight(1f).padding(start = 16.dp)) {
                                 Text("${visible.size} faixas · ${formatDuration(total)}", color = c.muted, fontSize = 13.sp)
                                 Spacer(Modifier.height(10.dp))
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Button(
-                                        onClick = { actions.playList(visible, false) },
-                                        colors = ButtonDefaults.buttonColors(containerColor = c.accent, contentColor = c.onAccent)
-                                    ) { Icon(Icons.Default.PlayArrow, null); Text("Tocar") }
-                                    OutlinedButton(onClick = { actions.playList(visible, true) }) {
-                                        Icon(Icons.Default.Shuffle, null, tint = c.accentFg)
+                                    GlassButton(onClick = { actions.playList(visible, false) }) {
+                                        Icon(Icons.Default.PlayArrow, null); Spacer(Modifier.width(4.dp)); Text("Tocar")
+                                    }
+                                    GlassButton(onClick = { actions.playList(visible, true) }, prominent = false) {
+                                        Icon(Icons.Default.Shuffle, "Aleatório", tint = c.accentFg)
                                     }
                                 }
                             }

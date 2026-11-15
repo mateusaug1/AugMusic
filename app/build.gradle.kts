@@ -1,5 +1,3 @@
-import java.time.LocalDate
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -17,7 +15,7 @@ android {
         versionCode = 13
         versionName = "13.0.0"
         // Metadado de compilação exibido em Configurações › Sobre.
-        buildConfigField("String", "BUILD_DATE", "\"${LocalDate.now()}\"")
+        buildConfigField("String", "BUILD_DATE", "\"${java.time.LocalDate.now()}\"")
     }
 
     buildTypes {

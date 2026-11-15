@@ -3,6 +3,14 @@
 package com.augustos.augmusic
 
 import android.content.Context
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.border
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -97,10 +105,16 @@ internal fun ArtworkImage(
     track: AudioTrack,
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(14.dp),
-    sizePx: Int = ArtSize.SMALL
+    sizePx: Int = ArtSize.SMALL,
+    elevated: Boolean = false
 ) {
+    val c = WC
     val bitmap = rememberArtwork(track, sizePx).value
-    Box(modifier.clip(shape)) {
+    val lift = if (elevated) {
+        val sh = Color.Black.copy(alpha = if (c.dark) 0.5f else 0.22f)
+        Modifier.shadow(12.dp, shape, clip = false, ambientColor = sh, spotColor = sh)
+    } else Modifier
+    Box(modifier.then(lift).clip(shape)) {
         if (bitmap == null) {
             CoverPlaceholder(Modifier.fillMaxSize())
         } else {
@@ -109,6 +123,16 @@ internal fun ArtworkImage(
                 contentDescription = "Capa de ${track.title}",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
+            )
+        }
+        if (elevated) {
+            // borda de luz: a capa parece um objeto de vidro
+            Box(
+                Modifier.fillMaxSize().border(
+                    1.dp,
+                    Brush.linearGradient(listOf(Color.White.copy(alpha = 0.50f), Color.White.copy(alpha = 0.04f), Color.White.copy(alpha = 0.16f))),
+                    shape
+                )
             )
         }
     }
@@ -143,7 +167,7 @@ internal fun SectionTitle(text: String, actionLabel: String? = null, onAction: (
     ) {
         Text(text, color = c.text, fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
         if (actionLabel != null && onAction != null) {
-            TextButton(onClick = onAction) { Text(actionLabel, color = c.accentFg, fontSize = 13.sp) }
+            GlassTextButton(onClick = onAction) { Text(actionLabel, color = c.accentFg, fontSize = 13.sp) }
         }
     }
 }
@@ -151,22 +175,27 @@ internal fun SectionTitle(text: String, actionLabel: String? = null, onAction: (
 @Composable
 internal fun WChip(label: String, selected: Boolean, onClick: () -> Unit, icon: ImageVector? = null) {
     val c = WC
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(50),
-        color = if (selected) c.accent else c.surfaceHigh,
-        border = if (selected) null else BorderStroke(1.dp, c.outline)
-    ) {
-        Row(Modifier.padding(horizontal = 14.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (icon != null) {
-                Icon(icon, null, tint = if (selected) c.onAccent else c.muted, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
-            }
-            Text(
-                label, color = if (selected) c.onAccent else c.text,
-                fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1
+    val press = rememberPress(pressedScale = 0.94f)
+    // a seleção "derrete" para o vidro colorido (animação suave de cor e brilho)
+    val tintAlpha by animateFloatAsState(if (selected) 0.92f else 0f, tween(240), label = "chipTint")
+    val fg by animateColorAsState(if (selected) c.onAccent else c.text, tween(240), label = "chipFg")
+    val iconFg by animateColorAsState(if (selected) c.onAccent else c.muted, tween(240), label = "chipIcon")
+    Row(
+        Modifier
+            .graphicsLayer { scaleX = press.scale; scaleY = press.scale }
+            .selectable(selected = selected, interactionSource = press.source, indication = null, role = Role.Tab, onClick = onClick)
+            .glass(
+                RoundedCornerShape(50), tint = c.accent, tintAlpha = tintAlpha,
+                elevation = if (selected) 6.dp else 2.dp, pressed = press.pressed
             )
+            .padding(horizontal = 15.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (icon != null) {
+            Icon(icon, null, tint = iconFg, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
         }
+        Text(label, color = fg, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
     }
 }
 
@@ -182,9 +211,9 @@ internal fun EmptyState(
     Box(modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
-                Modifier.size(72.dp).clip(CircleShape).background(c.accentSoft),
+                Modifier.size(80.dp).glass(CircleShape, tint = c.accent, tintAlpha = 0.18f, elevation = 10.dp),
                 contentAlignment = Alignment.Center
-            ) { Icon(icon, null, tint = c.accentFg, modifier = Modifier.size(34.dp)) }
+            ) { Icon(icon, null, tint = c.accentFg, modifier = Modifier.size(36.dp)) }
             Spacer(Modifier.height(14.dp))
             Text(title, color = c.text, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, textAlign = TextAlign.Center)
             Spacer(Modifier.height(4.dp))
@@ -197,7 +226,7 @@ internal fun EmptyState(
     }
 }
 
-/** Linha de menu (sheets e menus contextuais). */
+/** Linha de menu (sheets e menus contextuais): ícone em pastilha de vidro + realce ao tocar. */
 @Composable
 internal fun MenuRow(
     icon: ImageVector,
@@ -208,11 +237,19 @@ internal fun MenuRow(
 ) {
     val c = WC
     val tint = if (destructive) c.danger else c.accentFg
-    Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 22.dp, vertical = 13.dp),
-        verticalAlignment = Alignment.CenterVertically
+    GlassRowItem(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+        shape = RoundedCornerShape(20.dp),
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp),
+        onClick = onClick
     ) {
-        Box(Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(tint.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier.size(40.dp).glass(
+                RoundedCornerShape(14.dp), tint = if (destructive) c.danger else c.accent,
+                tintAlpha = 0.16f, elevation = 0.dp
+            ),
+            contentAlignment = Alignment.Center
+        ) {
             Icon(icon, null, tint = tint, modifier = Modifier.size(20.dp))
         }
         Spacer(Modifier.width(16.dp))

@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,17 +27,11 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -69,33 +64,22 @@ internal fun SortSheet(
     onChange: (String, Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val chipColors = FilterChipDefaults.filterChipColors(selectedContainerColor = WC.accent, selectedLabelColor = WC.onAccent)
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = WC.surface, contentColor = WC.text) {
+    GlassModalSheet(onDismiss = onDismiss) {
         Text("ORDENAR MÚSICAS", Modifier.padding(horizontal = 22.dp), fontSize = 18.sp, fontWeight = FontWeight.Bold)
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            FilterChip(
-                selected = !descending,
-                onClick = { onChange(sortBy, false) },
-                label = { Text("↑ CRESC") },
-                colors = chipColors
-            )
-            FilterChip(
-                selected = descending,
-                onClick = { onChange(sortBy, true) },
-                label = { Text("↓ DECRESC") },
-                colors = chipColors
-            )
+            WChip("↑ CRESC", !descending, onClick = { onChange(sortBy, false) })
+            WChip("↓ DECRESC", descending, onClick = { onChange(sortBy, true) })
         }
         LazyColumn(Modifier.fillMaxWidth().heightIn(max = 460.dp)) {
             items(options) { option ->
-                Row(
-                    Modifier.fillMaxWidth()
-                        .clickable { onChange(option, descending); onDismiss() }
-                        .padding(horizontal = 22.dp, vertical = 13.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                GlassRowItem(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                    selected = sortBy == option,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 13.dp),
+                    onClick = { onChange(option, descending); onDismiss() }
                 ) {
                     Text(option, Modifier.weight(1f), color = if (sortBy == option) WC.accentFg else WC.text)
                     if (sortBy == option) Icon(Icons.Default.Check, null, tint = WC.accentFg)
@@ -113,7 +97,7 @@ internal fun DetailsDialog(track: AudioTrack, onDismiss: () -> Unit) {
     val format = track.path?.substringAfterLast('.', "")?.uppercase()?.takeIf { it.isNotBlank() }
         ?: track.mimeType?.substringAfterLast('/')?.uppercase()
         ?: "desconhecido"
-    AlertDialog(
+    GlassAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Detalhes do arquivo") },
         text = {
@@ -135,7 +119,7 @@ internal fun DetailsDialog(track: AudioTrack, onDismiss: () -> Unit) {
                 Text("URI: ${track.uri}", fontSize = 10.sp, color = WC.muted)
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Fechar") } }
+        confirmButton = { GlassButton(onClick = onDismiss) { Text("Fechar") } }
     )
 }
 
@@ -161,8 +145,10 @@ internal fun EditTrackDialog(
             cover = uri.toString()
         }
     }
+    val fieldShape = RoundedCornerShape(18.dp)
+    val fieldColors = glassTextFieldColors()
 
-    AlertDialog(
+    GlassAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Editar informações") },
         text = {
@@ -170,23 +156,23 @@ internal fun EditTrackDialog(
                 Modifier.fillMaxWidth().heightIn(max = 500.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                OutlinedTextField(title, { title = it }, label = { Text("Título da música") }, singleLine = true)
-                OutlinedTextField(artist, { artist = it }, label = { Text("Artista") }, singleLine = true)
-                OutlinedTextField(album, { album = it }, label = { Text("Álbum") }, singleLine = true)
+                OutlinedTextField(title, { title = it }, label = { Text("Título da música") }, singleLine = true, shape = fieldShape, colors = fieldColors)
+                OutlinedTextField(artist, { artist = it }, label = { Text("Artista") }, singleLine = true, shape = fieldShape, colors = fieldColors)
+                OutlinedTextField(album, { album = it }, label = { Text("Álbum") }, singleLine = true, shape = fieldShape, colors = fieldColors)
                 if (cover != null) {
                     AsyncImage(
                         model = cover, contentDescription = "Capa escolhida",
-                        modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(12.dp)),
+                        modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(18.dp)),
                         contentScale = ContentScale.Crop
                     )
                 }
-                OutlinedButton(onClick = { coverPicker.launch(arrayOf("image/*")) }, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Default.Image, null)
+                GlassButton(onClick = { coverPicker.launch(arrayOf("image/*")) }, prominent = false, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.Image, null, tint = WC.accentFg)
                     Spacer(Modifier.width(8.dp))
                     Text("Escolher capa da galeria")
                 }
                 if (cover != null) {
-                    TextButton(onClick = { cover = null }, modifier = Modifier.fillMaxWidth()) {
+                    GlassTextButton(onClick = { cover = null }, modifier = Modifier.fillMaxWidth()) {
                         Text("Usar a capa original", color = WC.muted)
                     }
                 }
@@ -198,9 +184,9 @@ internal fun EditTrackDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(title, artist, album, cover) }) { Text("Salvar", color = WC.accentFg) }
+            GlassButton(onClick = { onSave(title, artist, album, cover) }) { Text("Salvar") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+        dismissButton = { GlassTextButton(onClick = onDismiss) { Text("Cancelar") } }
     )
 }
 
@@ -209,16 +195,19 @@ internal fun EditTrackDialog(
 @Composable
 internal fun CreatePlaylistDialog(onCreate: (String) -> Unit, onDismiss: () -> Unit) {
     var name by remember { mutableStateOf("") }
-    AlertDialog(
+    GlassAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Nova playlist") },
         text = {
-            OutlinedTextField(name, { name = it }, label = { Text("Nome da playlist") }, singleLine = true)
+            OutlinedTextField(
+                name, { name = it }, label = { Text("Nome da playlist") }, singleLine = true,
+                shape = RoundedCornerShape(18.dp), colors = glassTextFieldColors()
+            )
         },
         confirmButton = {
-            TextButton(onClick = { onCreate(name) }, enabled = name.isNotBlank()) { Text("Criar", color = WC.accentFg) }
+            GlassButton(onClick = { onCreate(name) }, enabled = name.isNotBlank()) { Text("Criar") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+        dismissButton = { GlassTextButton(onClick = onDismiss) { Text("Cancelar") } }
     )
 }
 
@@ -229,7 +218,7 @@ internal fun AddToPlaylistDialog(
     onCreateNew: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
+    GlassAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Adicionar à playlist") },
         text = {
@@ -239,14 +228,18 @@ internal fun AddToPlaylistDialog(
             ) {
                 if (names.isEmpty()) Text("Você ainda não criou playlists.", color = WC.muted)
                 names.forEach { name ->
-                    TextButton(onClick = { onPick(name) }, modifier = Modifier.fillMaxWidth()) {
+                    GlassRowItem(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+                        onClick = { onPick(name) }
+                    ) {
                         Text(name, color = WC.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
-                TextButton(onClick = onCreateNew) { Text("+ Criar playlist", color = WC.accentFg) }
+                GlassTextButton(onClick = onCreateNew) { Text("+ Criar playlist", color = WC.accentFg) }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Fechar") } }
+        confirmButton = { GlassButton(onClick = onDismiss, prominent = false) { Text("Fechar") } }
     )
 }
 
@@ -256,14 +249,17 @@ internal fun ConfirmDialog(
     message: String,
     confirmLabel: String,
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    destructive: Boolean = confirmLabel.startsWith("Excluir")
 ) {
-    AlertDialog(
+    GlassAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = { Text(message) },
-        confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel, color = WC.accentFg) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+        confirmButton = {
+            GlassButton(onClick = onConfirm, tone = if (destructive) WC.danger else WC.accent) { Text(confirmLabel) }
+        },
+        dismissButton = { GlassTextButton(onClick = onDismiss) { Text("Cancelar") } }
     )
 }
 
@@ -271,19 +267,25 @@ internal fun ConfirmDialog(
 
 @Composable
 internal fun SpeedDialog(current: Float, onPick: (Float) -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
+    GlassAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Velocidade de reprodução") },
         text = {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 listOf(0.5f, 0.8f, 1f, 1.2f, 1.5f, 2f).forEach { speed ->
-                    TextButton(onClick = { onPick(speed) }, modifier = Modifier.fillMaxWidth()) {
-                        Text("${speed}x", color = if (current == speed) WC.accentFg else WC.text)
+                    GlassRowItem(
+                        modifier = Modifier.fillMaxWidth(),
+                        selected = current == speed,
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                        onClick = { onPick(speed) }
+                    ) {
+                        Text("${speed}x", Modifier.weight(1f), color = if (current == speed) WC.accentFg else WC.text)
+                        if (current == speed) Icon(Icons.Default.Check, null, tint = WC.accentFg)
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Fechar") } }
+        confirmButton = { GlassButton(onClick = onDismiss, prominent = false) { Text("Fechar") } }
     )
 }
 
@@ -305,11 +307,11 @@ internal fun TimerDialog(
         }
     }
     // Os cinco botões ficavam numa única Row e estouravam a largura do diálogo; agora é uma coluna.
-    AlertDialog(
+    GlassAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Timer de desligamento") },
         text = {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 when (state.mode) {
                     SleepMode.TIMED -> Text(
                         "Timer ativo — restam ${formatDuration((state.endsAtElapsedMs - now).coerceAtLeast(0L))}",
@@ -318,20 +320,28 @@ internal fun TimerDialog(
                     SleepMode.END_OF_TRACK -> Text("Timer ativo — vai parar no fim da música", color = WC.accentFg)
                     SleepMode.OFF -> Text("Pause a reprodução automaticamente após:")
                 }
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
                 listOf(15, 30, 45, 60).forEach { minutes ->
-                    TextButton(onClick = { onTimed(minutes) }, modifier = Modifier.fillMaxWidth()) {
+                    GlassRowItem(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                        onClick = { onTimed(minutes) }
+                    ) {
                         Text(if (minutes == 60) "1 hora" else "$minutes minutos", color = WC.text)
                     }
                 }
-                TextButton(onClick = onEndOfTrack, modifier = Modifier.fillMaxWidth()) {
+                GlassRowItem(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    onClick = onEndOfTrack
+                ) {
                     Text("Fim da música", color = WC.text)
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Fechar") } },
+        confirmButton = { GlassButton(onClick = onDismiss, prominent = false) { Text("Fechar") } },
         dismissButton = {
-            if (state.mode != SleepMode.OFF) TextButton(onClick = onCancelTimer) { Text("Cancelar timer") }
+            if (state.mode != SleepMode.OFF) GlassTextButton(onClick = onCancelTimer) { Text("Cancelar timer") }
         }
     )
 }

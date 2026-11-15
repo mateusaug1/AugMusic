@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -51,10 +52,10 @@ import androidx.compose.material.icons.filled.SettingsBrightness
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -101,12 +102,13 @@ private fun PageScaffold(title: String, onBack: () -> Unit, content: @Composable
     val c = WC
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(start = 8.dp, end = 18.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Voltar", tint = c.accentFg) }
+            GlassIconButton(onClick = onBack, icon = Icons.Default.ArrowBack, contentDescription = "Voltar", tint = c.accentFg)
+            Spacer(Modifier.width(12.dp))
             Text(title, color = c.text, fontSize = 24.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp)
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 18.dp)) {
             content()
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(24.dp + LocalBottomInset.current))
         }
     }
 }
@@ -120,9 +122,10 @@ private fun Section(title: String?, content: @Composable ColumnScope.() -> Unit)
             letterSpacing = 1.5.sp, modifier = Modifier.padding(start = 6.dp, top = 20.dp, bottom = 8.dp)
         )
     } else Spacer(Modifier.height(16.dp))
-    Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(c.surface)
-            .border(1.dp, c.outline, RoundedCornerShape(22.dp)).padding(vertical = 6.dp),
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        contentPadding = PaddingValues(vertical = 6.dp),
         content = content
     )
 }
@@ -138,7 +141,7 @@ private fun ToggleRow(title: String, subtitle: String? = null, checked: Boolean,
             Text(title, color = if (enabled) c.text else c.muted, fontWeight = FontWeight.Medium)
             if (subtitle != null) Text(subtitle, color = c.muted, fontSize = 12.sp)
         }
-        Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
+        Switch(checked = checked, onCheckedChange = onChange, enabled = enabled, colors = glassSwitchColors())
     }
 }
 
@@ -155,7 +158,7 @@ private fun SliderRow(
         }
         Slider(
             value = value, onValueChange = onChange, valueRange = range, steps = steps,
-            colors = SliderDefaults.colors(thumbColor = c.accent, activeTrackColor = c.accent, inactiveTrackColor = c.outline)
+            colors = glassSliderColors()
         )
     }
 }
@@ -184,11 +187,7 @@ private fun ActionRow(
 @Composable
 private fun RestoreDefaultsButton(label: String = "Restaurar padrão", onClick: () -> Unit) {
     val c = WC
-    OutlinedButton(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
-        border = BorderStroke(1.dp, c.outline)
-    ) {
+    GlassButton(onClick = onClick, prominent = false, modifier = Modifier.fillMaxWidth().padding(top = 20.dp)) {
         Icon(Icons.Default.Restore, null, tint = c.accentFg)
         Spacer(Modifier.width(8.dp))
         Text(label, color = c.text)
@@ -250,26 +249,34 @@ internal fun SettingsScreen(
 @Composable
 private fun SettingsHome(nav: AppNav) {
     val c = WC
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
+    LazyColumn(
+        Modifier.fillMaxSize().padding(horizontal = 18.dp),
+        contentPadding = PaddingValues(bottom = 12.dp + LocalBottomInset.current)
+    ) {
         item {
             Text("Configurações", color = c.text, fontSize = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp, modifier = Modifier.padding(top = 14.dp))
             Text("Ajuste o WMusic do seu jeito", color = c.muted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 14.dp))
         }
         items(CATEGORIES, key = { it.id }) { cat ->
-            Row(
-                Modifier.fillMaxWidth().padding(vertical = 5.dp).clip(RoundedCornerShape(22.dp))
-                    .background(c.surface).border(1.dp, c.outline, RoundedCornerShape(22.dp))
-                    .clickable { nav.settingsPage = cat.id }.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+            GlassCard(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                shape = RoundedCornerShape(28.dp),
+                onClick = { nav.settingsPage = cat.id },
+                contentPadding = PaddingValues(16.dp)
             ) {
-                Box(Modifier.size(46.dp).clip(RoundedCornerShape(15.dp)).background(c.accentSoft), contentAlignment = Alignment.Center) {
-                    Icon(cat.icon, null, tint = c.accentFg)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.size(46.dp).glass(RoundedCornerShape(16.dp), tint = c.accent, tintAlpha = 0.20f, elevation = 0.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(cat.icon, null, tint = c.accentFg)
+                    }
+                    Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
+                        Text(cat.title, color = c.text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                        Text(cat.description, color = c.muted, fontSize = 12.sp)
+                    }
+                    Icon(Icons.Default.ChevronRight, null, tint = c.muted)
                 }
-                Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
-                    Text(cat.title, color = c.text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                    Text(cat.description, color = c.muted, fontSize = 12.sp)
-                }
-                Icon(Icons.Default.ChevronRight, null, tint = c.muted)
             }
         }
     }
@@ -291,8 +298,8 @@ private fun PersonalizationPage(vm: MainViewModel, onBack: () -> Unit) {
                 ).forEach { (mode, icon, label) ->
                     val selected = s.themeMode == mode
                     Column(
-                        Modifier.weight(1f).clip(RoundedCornerShape(18.dp))
-                            .background(if (selected) c.accent else c.surfaceHigh)
+                        Modifier.weight(1f)
+                            .glass(RoundedCornerShape(22.dp), tint = c.accent, tintAlpha = if (selected) 0.9f else 0f, elevation = if (selected) 6.dp else 2.dp)
                             .clickable { vm.updateSettings { it.copy(themeMode = mode) } }.padding(vertical = 14.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -446,7 +453,7 @@ private fun FolderList(
                 }
                 Text(description, color = c.muted, fontSize = 12.sp)
             }
-            TextButton(onClick = onAdd) {
+            GlassTextButton(onClick = onAdd) {
                 Icon(Icons.Default.Add, null, tint = c.accentFg, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(4.dp))
                 Text("Pasta", color = c.accentFg)
@@ -490,8 +497,8 @@ private fun LibraryPage(vm: MainViewModel, hasPermission: Boolean, onBack: () ->
                 ).forEach { (mode, desc) ->
                     val selected = s.libraryMode == mode
                     Column(
-                        Modifier.weight(1f).clip(RoundedCornerShape(18.dp))
-                            .background(if (selected) c.accent else c.surfaceHigh)
+                        Modifier.weight(1f)
+                            .glass(RoundedCornerShape(22.dp), tint = c.accent, tintAlpha = if (selected) 0.9f else 0f, elevation = if (selected) 6.dp else 2.dp)
                             .clickable { vm.updateSettings { it.copy(libraryMode = mode) } }.padding(14.dp)
                     ) {
                         Text(mode.label, color = if (selected) c.onAccent else c.text, fontWeight = FontWeight.Bold)
@@ -590,18 +597,22 @@ private fun GestureCard(title: String, hint: String, cfg: GestureConfig, onChang
                 Text(title, color = c.text, fontWeight = FontWeight.Medium)
                 Text(hint, color = c.muted, fontSize = 12.sp)
             }
-            Switch(checked = cfg.enabled, onCheckedChange = { onChange(cfg.copy(enabled = it)) })
+            Switch(checked = cfg.enabled, onCheckedChange = { onChange(cfg.copy(enabled = it)) }, colors = glassSwitchColors())
         }
         Spacer(Modifier.height(6.dp))
         Box {
-            OutlinedButton(
-                onClick = { open = true }, enabled = cfg.enabled,
-                border = BorderStroke(1.dp, c.outline), modifier = Modifier.fillMaxWidth()
+            GlassButton(
+                onClick = { open = true }, enabled = cfg.enabled, prominent = false,
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Text(cfg.action.label, color = if (cfg.enabled) c.text else c.muted, modifier = Modifier.weight(1f))
                 Icon(Icons.Default.ExpandMore, null, tint = c.muted)
             }
-            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenu(
+                expanded = open, onDismissRequest = { open = false },
+                shape = GlassMenuShape, containerColor = glassMenuContainer(),
+                border = glassMenuBorder(), tonalElevation = 0.dp, shadowElevation = 18.dp
+            ) {
                 GestureAction.entries.forEach { a ->
                     DropdownMenuItem(
                         text = { Text(a.label, color = if (a == cfg.action) c.accentFg else c.text) },
@@ -678,14 +689,13 @@ private fun BackupPage(vm: MainViewModel, onBack: () -> Unit) {
             CheckRow("Playlists", exportSections.playlists) { exportSections = exportSections.copy(playlists = it) }
             CheckRow("Favoritos", exportSections.favorites) { exportSections = exportSections.copy(favorites = it) }
             Box(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
-                Button(
+                GlassButton(
                     onClick = {
                         val stamp = SimpleDateFormat("yyyyMMdd-HHmm", Locale.ROOT).format(Date())
                         createLauncher.launch("wmusic-backup-$stamp.json")
                     },
                     enabled = !busy && (exportSections.settings || exportSections.playlists || exportSections.favorites),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = c.accent, contentColor = c.onAccent)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Default.Backup, null); Spacer(Modifier.width(8.dp)); Text("Escolher local e salvar")
                 }
@@ -694,9 +704,9 @@ private fun BackupPage(vm: MainViewModel, onBack: () -> Unit) {
         Section("Restaurar") {
             Hint("Selecione um backup do WMusic. O conteúdo é validado e você confirma antes de qualquer substituição.")
             Box(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
-                OutlinedButton(
+                GlassButton(
                     onClick = { openLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
-                    enabled = !busy, modifier = Modifier.fillMaxWidth(), border = BorderStroke(1.dp, c.outline)
+                    enabled = !busy, prominent = false, modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Default.Restore, null, tint = c.accentFg); Spacer(Modifier.width(8.dp))
                     Text("Importar arquivo de backup", color = c.text)
@@ -711,7 +721,7 @@ private fun BackupPage(vm: MainViewModel, onBack: () -> Unit) {
     }
 
     pending?.let { p ->
-        AlertDialog(
+        GlassAlertDialog(
             onDismissRequest = { pending = null },
             title = { Text("Restaurar backup") },
             text = {
@@ -736,20 +746,21 @@ private fun BackupPage(vm: MainViewModel, onBack: () -> Unit) {
                 }
             },
             confirmButton = {
-                TextButton(
+                GlassButton(
                     enabled = restoreSections.settings || restoreSections.playlists || restoreSections.favorites,
                     onClick = {
                         report = vm.restoreBackup(p, restoreSections)
                         pending = null
-                    }
-                ) { Text("Substituir e restaurar", color = c.accentFg) }
+                    },
+                    tone = c.danger
+                ) { Text("Substituir e restaurar") }
             },
-            dismissButton = { TextButton(onClick = { pending = null }) { Text("Cancelar") } }
+            dismissButton = { GlassTextButton(onClick = { pending = null }) { Text("Cancelar") } }
         )
     }
 
     report?.let { r ->
-        AlertDialog(
+        GlassAlertDialog(
             onDismissRequest = { report = null },
             title = { Text("Restauração concluída") },
             text = {
@@ -763,7 +774,7 @@ private fun BackupPage(vm: MainViewModel, onBack: () -> Unit) {
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { report = null }) { Text("OK", color = c.accentFg) } }
+            confirmButton = { GlassButton(onClick = { report = null }) { Text("OK") } }
         )
     }
 }
@@ -775,7 +786,10 @@ private fun CheckRow(label: String, checked: Boolean, onChange: (Boolean) -> Uni
         Modifier.fillMaxWidth().clickable { onChange(!checked) }.padding(horizontal = 14.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Checkbox(checked = checked, onCheckedChange = onChange)
+        Checkbox(
+            checked = checked, onCheckedChange = onChange,
+            colors = CheckboxDefaults.colors(checkedColor = c.accent, checkmarkColor = c.onAccent, uncheckedColor = c.muted)
+        )
         Text(label, color = c.text)
     }
 }
@@ -803,8 +817,8 @@ private fun LocatorPage(vm: MainViewModel, onShowInLibrary: (AudioTrack) -> Unit
                 modifier = Modifier.fillMaxWidth().padding(14.dp),
                 placeholder = { Text("Título, artista ou álbum", color = c.muted) },
                 leadingIcon = { Icon(Icons.Default.Search, null, tint = c.muted) },
-                singleLine = true, shape = RoundedCornerShape(16.dp),
-                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = c.accent, unfocusedBorderColor = c.outline)
+                singleLine = true, shape = RoundedCornerShape(22.dp),
+                colors = glassTextFieldColors()
             )
             Hint("A busca considera todas as músicas que o Android indexou, inclusive as ocultas pelo filtro de pastas.")
             results.forEach { t ->
@@ -857,7 +871,7 @@ private fun LocatorPage(vm: MainViewModel, onShowInLibrary: (AudioTrack) -> Unit
     selected?.let { t ->
         val available by produceState<Boolean?>(null, t.id) { value = vm.isAvailable(t) }
         val hidden = !LibraryFilter.apply(listOf(t), vm.settings).contains(t)
-        AlertDialog(
+        GlassAlertDialog(
             onDismissRequest = { selected = null },
             title = { Text(t.title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
             text = {
@@ -880,11 +894,11 @@ private fun LocatorPage(vm: MainViewModel, onShowInLibrary: (AudioTrack) -> Unit
             },
             confirmButton = {
                 Row {
-                    if (!hidden) TextButton(onClick = { onShowInLibrary(t); selected = null }) { Text("Mostrar na biblioteca", color = c.accentFg) }
-                    TextButton(onClick = { openFileLocation(context, t) }) { Text("Abrir pasta", color = c.accentFg) }
+                    if (!hidden) GlassTextButton(onClick = { onShowInLibrary(t); selected = null }) { Text("Mostrar na biblioteca", color = c.accentFg) }
+                    GlassTextButton(onClick = { openFileLocation(context, t) }) { Text("Abrir pasta", color = c.accentFg) }
                 }
             },
-            dismissButton = { TextButton(onClick = { selected = null }) { Text("Fechar") } }
+            dismissButton = { GlassTextButton(onClick = { selected = null }) { Text("Fechar") } }
         )
     }
 }

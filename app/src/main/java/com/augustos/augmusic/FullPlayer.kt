@@ -83,6 +83,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
@@ -304,22 +305,24 @@ private fun PlayButton(style: ButtonStyle, size: Dp, showPause: Boolean, onClick
     val c = WC
     val shape = if (style == ButtonStyle.SQUARE) RoundedCornerShape(size * 0.32f) else CircleShape
     val filled = style != ButtonStyle.OUTLINED
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.size(size),
-        shape = shape,
-        color = if (filled) c.accent else Color.Transparent,
-        contentColor = if (filled) c.onAccent else c.accentFg,
-        border = if (filled) null else BorderStroke(2.dp, c.accentFg),
-        shadowElevation = if (filled) 8.dp else 0.dp
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                if (showPause) Icons.Default.Pause else Icons.Default.PlayArrow,
-                if (showPause) "Pausar" else "Reproduzir",
-                modifier = Modifier.size(size * 0.5f)
+    val press = rememberPress(pressedScale = 0.92f)
+    Box(
+        Modifier.size(size)
+            .graphicsLayer { scaleX = press.scale; scaleY = press.scale }
+            .clickable(interactionSource = press.source, indication = null, role = Role.Button, onClick = onClick)
+            .glass(
+                shape, tint = if (filled) c.accent else null, tintAlpha = if (filled) 0.95f else 0f,
+                elevation = if (filled) 16.dp else 6.dp, pressed = press.pressed
             )
-        }
+            .then(if (!filled) Modifier.border(2.dp, c.accentFg, shape) else Modifier),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            if (showPause) Icons.Default.Pause else Icons.Default.PlayArrow,
+            if (showPause) "Pausar" else "Reproduzir",
+            tint = if (filled) c.onAccent else c.accentFg,
+            modifier = Modifier.size(size * 0.5f)
+        )
     }
 }
 
@@ -332,10 +335,13 @@ private fun Segment(
     onClick: () -> Unit
 ) {
     val c = WC
+    val press = rememberPress(pressedScale = 0.95f)
+    val glowAlpha by animateFloatAsState(if (active) 0.26f else 0f, tween(240), label = "segGlow")
     Column(
-        modifier.clip(RoundedCornerShape(16.dp))
-            .background(if (active) c.accentSoft else Color.Transparent)
-            .clickable(onClick = onClick)
+        modifier
+            .graphicsLayer { scaleX = press.scale; scaleY = press.scale }
+            .glass(RoundedCornerShape(20.dp), tint = c.accent, tintAlpha = glowAlpha, elevation = 0.dp, pressed = press.pressed)
+            .clickable(interactionSource = press.source, indication = null, role = Role.Button, onClick = onClick)
             .padding(vertical = 9.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -427,18 +433,24 @@ internal fun FullPlayer(
                     },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onClose) {
-                        Icon(Icons.Default.KeyboardArrowDown, "Minimizar player", tint = c.text, modifier = Modifier.size(32.dp))
-                    }
+                    GlassIconButton(
+                        onClick = onClose, icon = Icons.Default.KeyboardArrowDown,
+                        contentDescription = "Minimizar player", size = 44.dp, iconSize = 28.dp
+                    )
                     Text(
                         "TOCANDO AGORA", color = c.muted, fontSize = 11.sp, fontWeight = FontWeight.Bold,
                         letterSpacing = 2.4.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(1f)
                     )
                     Box {
-                        IconButton(onClick = { menuOpen = true }) {
-                            Icon(Icons.Default.MoreVert, "Mais opções", tint = c.text)
-                        }
-                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        GlassIconButton(
+                            onClick = { menuOpen = true }, icon = Icons.Default.MoreVert,
+                            contentDescription = "Mais opções", size = 44.dp, iconSize = 22.dp
+                        )
+                        DropdownMenu(
+                            expanded = menuOpen, onDismissRequest = { menuOpen = false },
+                            shape = GlassMenuShape, containerColor = glassMenuContainer(),
+                            border = glassMenuBorder(), tonalElevation = 0.dp, shadowElevation = 18.dp
+                        ) {
                             @Composable
                             fun item(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, a: PlayerMenuAction) {
                                 DropdownMenuItem(
@@ -478,13 +490,12 @@ internal fun FullPlayer(
                             Text(track.album, color = c.muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
-                    IconButton(onClick = onFavorite, modifier = Modifier.size(52.dp)) {
-                        Icon(
-                            if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            if (isFavorite) "Remover dos favoritos" else "Adicionar aos favoritos",
-                            tint = if (isFavorite) c.accentFg else c.text, modifier = Modifier.size(28.dp)
-                        )
-                    }
+                    GlassIconButton(
+                        onClick = onFavorite,
+                        icon = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = if (isFavorite) "Remover dos favoritos" else "Adicionar aos favoritos",
+                        size = 50.dp, iconSize = 26.dp, tint = if (isFavorite) c.accentFg else c.text
+                    )
                 }
 
                 // ---- progresso
@@ -499,7 +510,7 @@ internal fun FullPlayer(
                     },
                     valueRange = 0f..duration.toFloat(),
                     colors = SliderDefaults.colors(
-                        thumbColor = c.accent, activeTrackColor = c.accent,
+                        thumbColor = if (c.dark) Color.White else c.accent, activeTrackColor = c.accent,
                         inactiveTrackColor = c.text.copy(alpha = 0.18f)
                     )
                 )
@@ -529,8 +540,9 @@ internal fun FullPlayer(
                 if (settings.showSecondaryControls) {
                     Spacer(Modifier.height(14.dp))
                     Row(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
-                            .background(c.surfaceHigh.copy(alpha = if (c.dark) 0.65f else 0.9f)).padding(4.dp)
+                        Modifier.fillMaxWidth()
+                            .glass(RoundedCornerShape(26.dp), elevation = 8.dp)
+                            .padding(4.dp)
                     ) {
                         Segment(Icons.Default.Shuffle, "Aleatório", ps.shuffle, Modifier.weight(1f)) {
                             controller?.let { it.shuffleModeEnabled = !it.shuffleModeEnabled }
@@ -554,16 +566,17 @@ internal fun FullPlayer(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (settings.lyricsEnabled) {
-                        IconButton(onClick = onLyrics) { Icon(Icons.Default.ChatBubbleOutline, "Letras", tint = c.muted) }
+                        GlassIconButton(onClick = onLyrics, icon = Icons.Default.ChatBubbleOutline, contentDescription = "Letras", size = 46.dp, iconSize = 22.dp, tint = c.muted)
                     }
-                    IconButton(onClick = onTimer) {
-                        Icon(Icons.Default.Timer, "Temporizador de desligamento", tint = if (sleepActive) c.accentFg else c.muted)
-                    }
-                    TextButton(onClick = onSpeed) {
+                    GlassIconButton(
+                        onClick = onTimer, icon = Icons.Default.Timer, contentDescription = "Temporizador de desligamento",
+                        size = 46.dp, iconSize = 22.dp, tint = if (sleepActive) c.accentFg else c.muted
+                    )
+                    GlassButton(onClick = onSpeed, prominent = false, modifier = Modifier.height(46.dp)) {
                         Text("${ps.speed}×", color = if (ps.speed != 1f) c.accentFg else c.muted, fontWeight = FontWeight.Bold)
                     }
-                    IconButton(onClick = onQueue) { Icon(Icons.Default.QueueMusic, "Fila de reprodução", tint = c.muted) }
-                    IconButton(onClick = onEqualizer) { Icon(Icons.Default.Equalizer, "Equalizador", tint = c.muted) }
+                    GlassIconButton(onClick = onQueue, icon = Icons.Default.QueueMusic, contentDescription = "Fila de reprodução", size = 46.dp, iconSize = 22.dp, tint = c.muted)
+                    GlassIconButton(onClick = onEqualizer, icon = Icons.Default.Equalizer, contentDescription = "Equalizador", size = 46.dp, iconSize = 22.dp, tint = c.muted)
                 }
 
                 if (settings.showTechInfo) {

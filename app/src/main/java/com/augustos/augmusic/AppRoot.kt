@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -25,11 +26,19 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,10 +58,10 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 
 private val NAV_ITEMS = listOf(
-    Triple("home", Icons.Default.Home, "Início"),
-    Triple("library", Icons.Default.LibraryMusic, "Biblioteca"),
-    Triple("search", Icons.Default.Search, "Pesquisa"),
-    Triple("settings", Icons.Default.Settings, "Config.")
+    GlassTab("home", Icons.Default.Home, "Início"),
+    GlassTab("library", Icons.Default.LibraryMusic, "Biblioteca"),
+    GlassTab("search", Icons.Default.Search, "Pesquisa"),
+    GlassTab("settings", Icons.Default.Settings, "Config.")
 )
 
 @Composable
@@ -257,16 +266,63 @@ internal fun AugMusicApp(controller: MediaController?, vm: MainViewModel) {
 
     BackHandler(enabled = nav.canGoBack && !showFull) { nav.back() }
 
-    // ===================================================================== layout
-    Box(
-        Modifier.fillMaxSize().background(
-            if (c.useGradients) Brush.verticalGradient(listOf(c.gradTop, c.bg, c.bg)) else Brush.verticalGradient(listOf(c.bg, c.bg))
-        )
+    // ===================================================================== layout (Liquid Glass)
+
+    val backdrop = rememberGlassBackdrop()
+    val density = LocalDensity.current
+    var barsHeight by remember { mutableStateOf(0.dp) }
+
+    // Enquanto há painel/diálogo aberto o app atrás é desfocado (Android 12+), como nos sheets do iOS 26.
+    val anyModal = menuTrack != null || detailsTrack != null || editingTrack != null || deleteCandidate != null ||
+        playlistToDelete != null || showCreatePlaylist || showAddToPlaylist || showSort || showQueue ||
+        showLyrics || showTimer || showSpeed || showEqualizer
+    val modalBlur by animateDpAsState(
+        targetValue = if (anyModal && GLASS_BLUR_SUPPORTED) 16.dp else 0.dp,
+        animationSpec = tween(280), label = "modalBlur"
+    )
+
+    CompositionLocalProvider(
+        LocalGlassBackdrop provides backdrop,
+        LocalBottomInset provides barsHeight
     ) {
-        Scaffold(
-            containerColor = Color.Transparent,
-            bottomBar = {
-                Column {
+        Box(Modifier.fillMaxSize().then(if (modalBlur > 0.5.dp) Modifier.blur(modalBlur) else Modifier)) {
+            Box(Modifier.fillMaxSize().liquidBackground()) {
+                // Conteúdo das telas: é a "fonte" do blur das barras, e rola POR BAIXO delas.
+                Box(
+                    Modifier.fillMaxSize()
+                        .glassSource(backdrop)
+                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                ) {
+                    Crossfade(targetState = nav.destination, animationSpec = tween(220), label = "destination") { dest ->
+                        when (dest) {
+                            "library" -> LibraryScreen(
+                                data = data, vm = vm, nav = nav, ps = ps, actions = actions,
+                                hasPermission = hasPermission, onRequestPermission = requestPermission,
+                                onShowSort = { showSort = true },
+                                onNewPlaylist = { pendingPlaylistTrack = null; showCreatePlaylist = true },
+                                onDeletePlaylist = { playlistToDelete = it }
+                            )
+                            "search" -> SearchScreen(data, vm, nav, ps, actions)
+                            "settings" -> SettingsScreen(
+                                vm = vm, nav = nav, hasPermission = hasPermission,
+                                hasCurrentTrack = currentTrack != null,
+                                onOpenPlayer = { showFull = true },
+                                onShowInLibrary = { nav.showTrackInLibrary(it) }
+                            )
+                            else -> HomeScreen(
+                                data = data, vm = vm, nav = nav, ps = ps, current = currentTrack, actions = actions,
+                                hasPermission = hasPermission, onRequestPermission = requestPermission
+                            )
+                        }
+                    }
+                }
+
+                // Barras flutuantes de vidro: mini player + tab bar.
+                Column(
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                        .onSizeChanged { barsHeight = with(density) { it.height.toDp() } }
+                        .navigationBarsPadding()
+                ) {
                     val mini = currentTrack
                     if (settings.miniEnabled && mini != null) {
                         MiniPlayer(
@@ -274,78 +330,49 @@ internal fun AugMusicApp(controller: MediaController?, vm: MainViewModel) {
                             onOpenFull = { showFull = true }, onMenu = { menuTrack = mini }
                         )
                     }
-                    NavigationBar(containerColor = c.surface) {
-                        NAV_ITEMS.forEach { (dest, icon, label) ->
-                            NavigationBarItem(
-                                selected = nav.destination == dest,
-                                onClick = { nav.select(dest) },
-                                icon = { androidx.compose.material3.Icon(icon, contentDescription = label) },
-                                label = { Text(label, fontSize = 11.sp, maxLines = 1) }
-                            )
-                        }
-                    }
+                    GlassTabBar(
+                        tabs = NAV_ITEMS,
+                        selectedId = nav.destination,
+                        onSelect = { nav.select(it) },
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 8.dp)
+                    )
                 }
             }
-        ) { padding ->
-            Box(Modifier.fillMaxSize().padding(padding)) {
-                Crossfade(targetState = nav.destination, animationSpec = tween(220), label = "destination") { dest ->
-                    when (dest) {
-                        "library" -> LibraryScreen(
-                            data = data, vm = vm, nav = nav, ps = ps, actions = actions,
-                            hasPermission = hasPermission, onRequestPermission = requestPermission,
-                            onShowSort = { showSort = true },
-                            onNewPlaylist = { pendingPlaylistTrack = null; showCreatePlaylist = true },
-                            onDeletePlaylist = { playlistToDelete = it }
-                        )
-                        "search" -> SearchScreen(data, vm, nav, ps, actions)
-                        "settings" -> SettingsScreen(
-                            vm = vm, nav = nav, hasPermission = hasPermission,
-                            hasCurrentTrack = currentTrack != null,
-                            onOpenPlayer = { showFull = true },
-                            onShowInLibrary = { nav.showTrackInLibrary(it) }
-                        )
-                        else -> HomeScreen(
-                            data = data, vm = vm, nav = nav, ps = ps, current = currentTrack, actions = actions,
-                            hasPermission = hasPermission, onRequestPermission = requestPermission
-                        )
-                    }
-                }
-            }
-        }
 
-        // Player Full: sobreposição com transição suave (não é Dialog, respeita áreas seguras e o botão voltar).
-        val full = currentTrack
-        AnimatedVisibility(
-            visible = showFull && full != null,
-            enter = slideInVertically(tween(320)) { it } + fadeIn(tween(220)),
-            exit = slideOutVertically(tween(260)) { it } + fadeOut(tween(200))
-        ) {
-            if (full != null) {
-                FullPlayer(
-                    track = full, ps = ps, controller = controller, settings = settings,
-                    isFavorite = full.id in vm.favorites,
-                    sleepActive = sleepState.mode != SleepMode.OFF,
-                    onClose = { showFull = false },
-                    onFavorite = { vm.toggleFavorite(full.id) },
-                    onLyrics = { showLyrics = true },
-                    onTimer = { showTimer = true },
-                    onSpeed = { showSpeed = true },
-                    onQueue = { showQueue = true },
-                    onEqualizer = { showEqualizer = true },
-                    onMenuAction = { a ->
-                        when (a) {
-                            PlayerMenuAction.DETAILS -> detailsTrack = full
-                            PlayerMenuAction.EDIT -> editingTrack = full
-                            PlayerMenuAction.SHARE -> shareTrack(context, full)
-                            PlayerMenuAction.PLAYLIST -> { pendingPlaylistTrack = full; showAddToPlaylist = true }
-                            PlayerMenuAction.RINGTONE -> setAsRingtone(context, full)
-                            PlayerMenuAction.LOCATE -> openFileLocation(context, full)
-                            PlayerMenuAction.LYRICS -> showLyrics = true
-                            PlayerMenuAction.SETTINGS -> { showFull = false; nav.openSettings("player") }
-                        }
-                    },
-                    onGesture = { handleGesture(it) }
-                )
+            // Player Full: sobreposição com transição suave (não é Dialog, respeita áreas seguras e o botão voltar).
+            val full = currentTrack
+            AnimatedVisibility(
+                visible = showFull && full != null,
+                enter = slideInVertically(tween(360)) { it } + fadeIn(tween(240)),
+                exit = slideOutVertically(tween(280)) { it } + fadeOut(tween(200))
+            ) {
+                if (full != null) {
+                    FullPlayer(
+                        track = full, ps = ps, controller = controller, settings = settings,
+                        isFavorite = full.id in vm.favorites,
+                        sleepActive = sleepState.mode != SleepMode.OFF,
+                        onClose = { showFull = false },
+                        onFavorite = { vm.toggleFavorite(full.id) },
+                        onLyrics = { showLyrics = true },
+                        onTimer = { showTimer = true },
+                        onSpeed = { showSpeed = true },
+                        onQueue = { showQueue = true },
+                        onEqualizer = { showEqualizer = true },
+                        onMenuAction = { a ->
+                            when (a) {
+                                PlayerMenuAction.DETAILS -> detailsTrack = full
+                                PlayerMenuAction.EDIT -> editingTrack = full
+                                PlayerMenuAction.SHARE -> shareTrack(context, full)
+                                PlayerMenuAction.PLAYLIST -> { pendingPlaylistTrack = full; showAddToPlaylist = true }
+                                PlayerMenuAction.RINGTONE -> setAsRingtone(context, full)
+                                PlayerMenuAction.LOCATE -> openFileLocation(context, full)
+                                PlayerMenuAction.LYRICS -> showLyrics = true
+                                PlayerMenuAction.SETTINGS -> { showFull = false; nav.openSettings("player") }
+                            }
+                        },
+                        onGesture = { handleGesture(it) }
+                    )
+                }
             }
         }
     }

@@ -2,6 +2,7 @@ package com.augustos.augmusic
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,11 +54,17 @@ private fun greeting(): String {
 @Composable
 private fun QuickCard(icon: ImageVector, label: String, modifier: Modifier, onClick: () -> Unit) {
     val c = WC
-    Column(
-        modifier.clip(RoundedCornerShape(20.dp)).background(c.surface).clickable(onClick = onClick).padding(vertical = 16.dp),
+    GlassCard(
+        modifier = modifier,
+        shape = RoundedCornerShape(26.dp),
+        onClick = onClick,
+        contentPadding = PaddingValues(vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(Modifier.size(42.dp).clip(CircleShape).background(c.accentSoft), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier.size(44.dp).glass(CircleShape, tint = c.accent, tintAlpha = 0.22f, elevation = 0.dp),
+            contentAlignment = Alignment.Center
+        ) {
             Icon(icon, null, tint = c.accentFg, modifier = Modifier.size(22.dp))
         }
         Spacer(Modifier.height(8.dp))
@@ -68,11 +75,18 @@ private fun QuickCard(icon: ImageVector, label: String, modifier: Modifier, onCl
 @Composable
 private fun CoverCard(track: AudioTrack, title: String, subtitle: String, circle: Boolean, onClick: () -> Unit) {
     val c = WC
-    Column(Modifier.width(132.dp).clip(RoundedCornerShape(18.dp)).clickable(onClick = onClick).padding(bottom = 4.dp)) {
+    val press = rememberPress(pressedScale = 0.96f)
+    Column(
+        Modifier.width(132.dp)
+            .graphicsLayer { scaleX = press.scale; scaleY = press.scale }
+            .clip(RoundedCornerShape(22.dp))
+            .clickable(interactionSource = press.source, indication = null, onClick = onClick)
+            .padding(bottom = 4.dp)
+    ) {
         if (circle) {
             Box(Modifier.width(132.dp), contentAlignment = Alignment.Center) { ArtistAvatar(track, 112.dp) }
         } else {
-            ArtworkImage(track, Modifier.size(132.dp), RoundedCornerShape(20.dp), ArtSize.MEDIUM)
+            ArtworkImage(track, Modifier.size(132.dp), RoundedCornerShape(24.dp), ArtSize.MEDIUM, elevated = true)
         }
         Spacer(Modifier.height(8.dp))
         Text(
@@ -102,8 +116,12 @@ internal fun HomeScreen(
     val c = WC
     val favorites = remember(data, vm.favorites) { data.sorted.filter { it.id in vm.favorites } }
     val hello = remember { greeting() }
+    val bottomInset = LocalBottomInset.current
 
-    LazyColumn(Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)) {
+    LazyColumn(
+        Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 12.dp + bottomInset)
+    ) {
         item {
             Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -124,15 +142,9 @@ internal fun HomeScreen(
                     modifier = Modifier.padding(top = 40.dp)
                 ) {
                     if (!hasPermission) {
-                        Button(
-                            onClick = onRequestPermission,
-                            colors = ButtonDefaults.buttonColors(containerColor = c.accent, contentColor = c.onAccent)
-                        ) { Text("Permitir acesso") }
+                        GlassButton(onClick = onRequestPermission) { Text("Permitir acesso") }
                     } else if (!vm.isLoading) {
-                        Button(
-                            onClick = { vm.refresh() },
-                            colors = ButtonDefaults.buttonColors(containerColor = c.accent, contentColor = c.onAccent)
-                        ) { Text("Atualizar biblioteca") }
+                        GlassButton(onClick = { vm.refresh() }) { Text("Atualizar biblioteca") }
                     }
                 }
             }
@@ -141,20 +153,28 @@ internal fun HomeScreen(
 
         if (current != null) {
             item {
-                Row(
-                    Modifier.fillMaxWidth().padding(top = 18.dp).clip(RoundedCornerShape(24.dp))
-                        .background(if (c.useGradients) c.accentSoft else c.surface)
-                        .clickable { actions.openFull() }.padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
+                    shape = RoundedCornerShape(32.dp),
+                    tint = if (c.useGradients) c.accent else null,
+                    tintAlpha = 0.18f,
+                    elevation = 12.dp,
+                    onClick = { actions.openFull() },
+                    contentPadding = PaddingValues(14.dp)
                 ) {
-                    ArtworkImage(current, Modifier.size(76.dp), RoundedCornerShape(18.dp), ArtSize.MEDIUM)
-                    Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
-                        Text(if (ps.isPlaying) "Tocando agora" else "Continuar ouvindo", color = c.accentFg, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
-                        Text(current.title, color = c.text, fontWeight = FontWeight.Bold, fontSize = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        Text(current.artist, color = c.muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                    Box(Modifier.size(46.dp).clip(CircleShape).background(c.accent), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.PlayArrow, "Abrir player", tint = c.onAccent)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        ArtworkImage(current, Modifier.size(76.dp), RoundedCornerShape(22.dp), ArtSize.MEDIUM, elevated = true)
+                        Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
+                            Text(if (ps.isPlaying) "Tocando agora" else "Continuar ouvindo", color = c.accentFg, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+                            Text(current.title, color = c.text, fontWeight = FontWeight.Bold, fontSize = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text(current.artist, color = c.muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        Box(
+                            Modifier.size(48.dp).glass(CircleShape, tint = c.accent, tintAlpha = 0.94f, elevation = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.PlayArrow, "Abrir player", tint = c.onAccent)
+                        }
                     }
                 }
             }
@@ -173,7 +193,7 @@ internal fun HomeScreen(
         if (data.recent.isNotEmpty()) {
             item { SectionTitle("Adicionadas recentemente", "Ver tudo") { nav.openLibrary("Músicas") } }
             item {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 10.dp)) {
                     items(data.recent, key = { it.id }) { t ->
                         CoverCard(t, t.title, t.artist, false) { actions.play(t, data.recent) }
                     }
@@ -183,7 +203,7 @@ internal fun HomeScreen(
         if (favorites.isNotEmpty()) {
             item { SectionTitle("Suas favoritas", "Ver tudo") { nav.openLibrary("Favoritos") } }
             item {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 10.dp)) {
                     items(favorites.take(20), key = { it.id }) { t ->
                         CoverCard(t, t.title, t.artist, false) { actions.play(t, favorites) }
                     }
@@ -193,7 +213,7 @@ internal fun HomeScreen(
         if (data.albums.isNotEmpty()) {
             item { SectionTitle("Álbuns", "Ver tudo") { nav.openLibrary("Álbuns") } }
             item {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 10.dp)) {
                     items(data.albums.take(20), key = { it.key }) { g ->
                         CoverCard(g.rep, g.title, g.subtitle, false) { nav.openAlbum(g.key, g.title) }
                     }
@@ -203,7 +223,7 @@ internal fun HomeScreen(
         if (data.artists.isNotEmpty()) {
             item { SectionTitle("Artistas", "Ver tudo") { nav.openLibrary("Artistas") } }
             item {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 10.dp)) {
                     items(data.artists.take(20), key = { it.key }) { g ->
                         CoverCard(g.rep, g.title, g.subtitle, true) { nav.openArtist(g.key, g.title) }
                     }
@@ -213,9 +233,13 @@ internal fun HomeScreen(
         item {
             val hours = data.totalDurationMs / 3_600_000L
             val minutes = (data.totalDurationMs / 60_000L) % 60L
+            GlassCard(
+                modifier = Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 12.dp),
+                shape = RoundedCornerShape(26.dp),
+                contentPadding = PaddingValues(16.dp)
+            ) {
             Row(
-                Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 12.dp).clip(RoundedCornerShape(20.dp))
-                    .background(c.surface).padding(16.dp),
+                Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 listOf(
@@ -229,6 +253,7 @@ internal fun HomeScreen(
                         Text(label, color = c.muted, fontSize = 11.sp)
                     }
                 }
+            }
             }
         }
     }

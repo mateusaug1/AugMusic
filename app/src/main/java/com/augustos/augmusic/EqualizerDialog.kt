@@ -13,13 +13,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -36,9 +34,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 internal fun EqualizerDialog(onDismiss: () -> Unit) {
     val settings by AudioEffects.settings.collectAsStateWithLifecycle()
     val status by AudioEffects.status.collectAsStateWithLifecycle()
-    val sliderColors = SliderDefaults.colors(thumbColor = WC.accentFg, activeTrackColor = WC.accentFg)
+    val sliderColors = glassSliderColors()
 
-    AlertDialog(
+    GlassAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.padding(horizontal = 8.dp),
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -51,7 +49,7 @@ internal fun EqualizerDialog(onDismiss: () -> Unit) {
                 Switch(
                     checked = settings.enabled,
                     onCheckedChange = { on -> AudioEffects.update { it.copy(enabled = on) } },
-                    colors = SwitchDefaults.colors(checkedThumbColor = WC.onAccent, checkedTrackColor = WC.accentFg)
+                    colors = glassSwitchColors()
                 )
             }
         },
@@ -59,7 +57,7 @@ internal fun EqualizerDialog(onDismiss: () -> Unit) {
             Column(Modifier.fillMaxWidth().heightIn(max = 560.dp).verticalScroll(rememberScrollState())) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     EQ_PRESETS.forEach { (name, values) ->
-                        TextButton(
+                        GlassTextButton(
                             onClick = { AudioEffects.update { it.copy(preset = name, bands = values) } },
                             contentPadding = PaddingValues(horizontal = 3.dp)
                         ) {
@@ -141,6 +139,6 @@ internal fun EqualizerDialog(onDismiss: () -> Unit) {
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Concluir", color = WC.accentFg) } }
+        confirmButton = { GlassButton(onClick = onDismiss) { Text("Concluir") } }
     )
 }

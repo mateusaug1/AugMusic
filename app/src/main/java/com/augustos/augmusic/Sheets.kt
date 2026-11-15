@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -40,11 +41,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -81,10 +79,14 @@ internal class TrackMenuActions(
 @Composable
 private fun QuickAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, active: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val c = WC
-    Column(
-        modifier.clip(RoundedCornerShape(18.dp))
-            .background(if (active) c.accentSoft else c.surfaceHigh)
-            .clickable(onClick = onClick).padding(vertical = 14.dp),
+    GlassCard(
+        modifier = modifier,
+        shape = RoundedCornerShape(22.dp),
+        tint = if (active) c.accent else null,
+        tintAlpha = 0.24f,
+        elevation = 4.dp,
+        onClick = onClick,
+        contentPadding = PaddingValues(vertical = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(icon, null, tint = c.accentFg, modifier = Modifier.size(24.dp))
@@ -102,15 +104,10 @@ internal fun TrackMenuSheet(
     onDismiss: () -> Unit
 ) {
     val c = WC
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = c.surface,
-        contentColor = c.text
-    ) {
+    GlassModalSheet(onDismiss = onDismiss, skipPartiallyExpanded = true) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
             Row(Modifier.padding(horizontal = 22.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                ArtworkImage(track, Modifier.size(60.dp), RoundedCornerShape(16.dp), ArtSize.SMALL)
+                ArtworkImage(track, Modifier.size(60.dp), RoundedCornerShape(18.dp), ArtSize.SMALL, elevated = true)
                 Column(Modifier.weight(1f).padding(start = 14.dp)) {
                     Text(track.title, color = c.text, fontWeight = FontWeight.Bold, fontSize = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Text(track.artist, color = c.muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -143,7 +140,7 @@ internal fun TrackMenuSheet(
 @Composable
 internal fun QueueSheet(ps: PlayerState, controller: MediaController?, onDismiss: () -> Unit) {
     val c = WC
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = c.surface, contentColor = c.text) {
+    GlassModalSheet(onDismiss = onDismiss) {
         val queue = ps.queue
         Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -152,7 +149,7 @@ internal fun QueueSheet(ps: PlayerState, controller: MediaController?, onDismiss
             }
             val hasNext = controller != null && ps.currentIndex in 0 until queue.size - 1
             if (hasNext) {
-                TextButton(onClick = {
+                GlassTextButton(onClick = {
                     controller?.removeMediaItems(ps.currentIndex + 1, queue.size)
                 }) { Text("Limpar a seguir", color = c.accentFg) }
             }
@@ -166,12 +163,11 @@ internal fun QueueSheet(ps: PlayerState, controller: MediaController?, onDismiss
             LazyColumn(Modifier.fillMaxWidth().heightIn(max = 460.dp), state = listState) {
                 itemsIndexed(queue) { index, item ->
                     val current = index == ps.currentIndex
-                    Row(
-                        Modifier.fillMaxWidth()
-                            .background(if (current) c.accentSoft else androidx.compose.ui.graphics.Color.Transparent)
-                            .clickable { controller.seekToDefaultPosition(index); controller.play() }
-                            .padding(start = 22.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    GlassRowItem(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                        selected = current,
+                        contentPadding = PaddingValues(start = 10.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+                        onClick = { controller.seekToDefaultPosition(index); controller.play() }
                     ) {
                         Icon(Icons.Default.MusicNote, null, tint = if (current) c.accentFg else c.muted)
                         Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
@@ -219,12 +215,7 @@ internal fun LyricsSheet(
     var results by remember(track.id) { mutableStateOf<List<LyricsCandidate>?>(null) }
     var error by remember(track.id) { mutableStateOf<String?>(null) }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = c.surface,
-        contentColor = c.text
-    ) {
+    GlassModalSheet(onDismiss = onDismiss, skipPartiallyExpanded = true) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp)) {
             Text("Letra", color = c.muted, fontSize = 11.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
             Text(track.title, color = c.text, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -233,7 +224,7 @@ internal fun LyricsSheet(
 
             if (!settings.lyricsEnabled) {
                 Text("A exibição de letras está desativada.", color = c.muted)
-                TextButton(onClick = onEnable) { Text("Ativar letras", color = c.accentFg) }
+                GlassTextButton(onClick = onEnable) { Text("Ativar letras", color = c.accentFg) }
             } else when (mode) {
                 LyricsMode.VIEW -> {
                     Column(Modifier.fillMaxWidth().heightIn(min = 120.dp, max = 380.dp).verticalScroll(rememberScrollState())) {
@@ -313,18 +304,20 @@ internal fun LyricsSheet(
                             }
                         }
                     }
-                    TextButton(onClick = { mode = LyricsMode.VIEW }) { Text("Voltar", color = c.accentFg) }
+                    GlassTextButton(onClick = { mode = LyricsMode.VIEW }) { Text("Voltar", color = c.accentFg) }
                 }
 
                 LyricsMode.EDIT -> {
                     OutlinedTextField(
                         value = draft, onValueChange = { draft = it },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 360.dp),
-                        placeholder = { Text("Cole a letra aqui") }
+                        placeholder = { Text("Cole a letra aqui") },
+                        shape = RoundedCornerShape(20.dp),
+                        colors = glassTextFieldColors()
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = { mode = LyricsMode.VIEW }) { Text("Cancelar", color = c.muted) }
-                        TextButton(
+                        GlassTextButton(onClick = { mode = LyricsMode.VIEW }) { Text("Cancelar", color = c.muted) }
+                        GlassTextButton(
                             enabled = draft.isNotBlank(),
                             onClick = { scope.launch { onSave(draft, null); mode = LyricsMode.VIEW } }
                         ) { Text("Salvar", color = c.accentFg) }

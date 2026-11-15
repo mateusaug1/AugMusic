@@ -77,16 +77,13 @@ internal fun SearchScreen(
             placeholder = { Text("Música, artista ou álbum", color = c.muted) },
             leadingIcon = { Icon(Icons.Default.Search, null, tint = c.muted) },
             trailingIcon = {
-                if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Default.Close, "Limpar busca") }
+                if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Default.Close, "Limpar busca", tint = c.muted) }
             },
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { focus.clearFocus() }),
-            shape = RoundedCornerShape(20.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = c.accent, unfocusedBorderColor = c.outline,
-                focusedContainerColor = c.surface, unfocusedContainerColor = c.surface
-            )
+            shape = RoundedCornerShape(26.dp),
+            colors = glassTextFieldColors()
         )
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 10.dp),
@@ -100,13 +97,14 @@ internal fun SearchScreen(
         } else if (tracks.isEmpty() && albums.isEmpty() && artists.isEmpty()) {
             EmptyState(Icons.Default.Search, "Nada encontrado", "Nenhum resultado para \"${query.trim()}\".", Modifier.weight(1f))
         } else {
-            LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 12.dp)) {
+            LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 12.dp + LocalBottomInset.current)) {
                 if (showArtists && artists.isNotEmpty()) {
                     item { SectionTitle("Artistas") }
                     items(artists.take(if (filter == "Tudo") 4 else 100), key = { "ar-${it.key}" }) { g ->
-                        Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable { nav.openArtist(g.key, g.title) }.padding(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        GlassRowItem(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(22.dp),
+                            onClick = { nav.openArtist(g.key, g.title) }
                         ) {
                             ArtistAvatar(g.rep, 48.dp)
                             Column(Modifier.padding(start = 12.dp)) {
@@ -119,11 +117,12 @@ internal fun SearchScreen(
                 if (showAlbums && albums.isNotEmpty()) {
                     item { SectionTitle("Álbuns") }
                     items(albums.take(if (filter == "Tudo") 4 else 100), key = { "al-${it.key}" }) { g ->
-                        Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable { nav.openAlbum(g.key, g.title) }.padding(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        GlassRowItem(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(22.dp),
+                            onClick = { nav.openAlbum(g.key, g.title) }
                         ) {
-                            ArtworkImage(g.rep, Modifier.size(48.dp), RoundedCornerShape(12.dp))
+                            ArtworkImage(g.rep, Modifier.size(48.dp), RoundedCornerShape(14.dp))
                             Column(Modifier.padding(start = 12.dp)) {
                                 Text(g.title, color = c.text, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(g.subtitle, color = c.muted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)

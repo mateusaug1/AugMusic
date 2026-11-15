@@ -1,5 +1,19 @@
 # WMusic — Changelog
 
+## V13.1 — Liquid Glass (inspirado no iOS 26)
+
+> Não compilado no ambiente de desenvolvimento (sem Android SDK). Rode `./gradlew assembleDebug` e teste no aparelho.
+> Nenhuma funcionalidade, configuração ou dado foi alterado: é uma reformulação visual.
+
+- **Novo `LiquidGlass.kt`** (design system): `Modifier.glass()` (preenchimento translúcido, reflexo especular, borda de luz, sombra),
+  `GlassCard`, `GlassButton` (neutro/proeminente), `GlassIconButton`, `GlassTextButton`, `GlassRowItem`, `GlassTabBar`,
+  `GlassAlertDialog`, `GlassModalSheet` e helpers de campos/switch/slider.
+- **Navbar:** barra de abas flutuante em cápsula de vidro; a seleção é uma gota de vidro que desliza com mola.
+- **Blur real** (Android 12+) do conteúdo que rola por baixo da tab bar e do Mini Player; Android 8–11 usa vidro mais opaco.
+- **Painéis e diálogos** em vidro; o app atrás é desfocado enquanto estão abertos.
+- **Cartões, chips, botões, linhas de lista, capas e Player Full** com vidro, profundidade e feedback de toque animado.
+- Fundo com luzes suaves da cor de destaque (respeita a opção "Gradientes").
+
 ## V13.0 (versionCode 13) — redesign completo
 
 > Revisão estática (sem compilar no ambiente de desenvolvimento). Rode `./gradlew assembleDebug`
